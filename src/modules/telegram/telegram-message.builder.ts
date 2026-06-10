@@ -58,10 +58,21 @@ Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng SPX t
 ➕ <b>/add SPXVN...</b> - Thêm đơn hàng cần theo dõi
 📦 <b>/list</b> - Xem danh sách đơn đang theo dõi
 🗑️ <b>/remove SPXVN...</b> - Xoá đơn khỏi danh sách
+☎️ <b>/contact</b> - Liên hệ admin
 ℹ️ <b>/start</b> - Xem hướng dẫn
 
 <b>🧾 Ví dụ</b>
 <code>/add SPXVN063015366786</code>`;
+  },
+
+  contact(adminUsername: string): string {
+    return `<b>☎️ Liên hệ admin</b>
+━━━━━━━━━━━━━━━━
+
+Nếu bạn cần hỗ trợ, vui lòng liên hệ:
+
+👤 Admin Telegram:
+<b>${escapeHtml(adminUsername)}</b>`;
   },
 
   addInstruction(): string {

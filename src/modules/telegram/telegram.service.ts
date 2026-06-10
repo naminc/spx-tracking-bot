@@ -43,6 +43,11 @@ export class TelegramService {
       return;
     }
 
+    if (text === '/contact') {
+      await this.sendMessage(chatId, telegramMessageBuilder.contact(env.TELEGRAM_ADMIN_USERNAME));
+      return;
+    }
+
     if (command === '/remove') {
       await this.handleRemove(chatId, text);
       return;

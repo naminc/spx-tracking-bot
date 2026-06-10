@@ -2,6 +2,8 @@
 
 Telegram bot and REST API for tracking SPX Vietnam shipments.
 
+Demo bot: `@spx_track_bot`
+
 ## Stack
 
 - Node.js, TypeScript, Express
@@ -23,6 +25,7 @@ Set these values in `.env` before using Telegram or MySQL:
 ```env
 DATABASE_URL=mysql://root:password@localhost:3306/spx_tracking
 TELEGRAM_BOT_TOKEN=
+TELEGRAM_ADMIN_USERNAME=@naminc
 TELEGRAM_POLLING_TIMEOUT_SECONDS=25
 ```
 
@@ -92,6 +95,7 @@ Commands:
 - `/add SPXVNxxxx`
 - `/list`
 - `/remove SPXVNxxxx`
+- `/contact`
 
 The bot uses Telegram long polling by default, so local development does not need a public webhook URL.
 

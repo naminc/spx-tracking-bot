@@ -8,6 +8,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().min(1),
   TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
+  TELEGRAM_ADMIN_USERNAME: z.string().trim().min(1).default('@naminc'),
   TELEGRAM_POLLING_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(25),
   SPX_API_URL: z
     .string()

@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum FinalStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+model TrackingOrder {
+  id                Int               @id @default(autoincrement())
+  trackingNumber    String            @db.VarChar(64)
+  telegramChatId    String            @db.VarChar(64)
+  currentStatus     String            @db.VarChar(512)
+  currentStatusCode String            @db.VarChar(128)
+  milestoneCode     String?           @db.VarChar(128)
+  milestoneName     String?           @db.VarChar(255)
+  lastEventTime     DateTime
+  isCompleted       Boolean           @default(false)
+  finalStatus       FinalStatus       @default(PENDING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  histories         TrackingHistory[]
+
+  @@unique([trackingNumber, telegramChatId])
+  @@index([isCompleted])
+  @@index([trackingNumber])
+}
+
+model TrackingHistory {
+  id                Int           @id @default(autoincrement())
+  orderId           Int
+  order             TrackingOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  trackingCode      String        @db.VarChar(128)
+  trackingName      String?       @db.VarChar(255)
+  status            String        @db.VarChar(512)
+  description       String?       @db.VarChar(512)
+  buyerDescription  String?       @db.VarChar(512)
+  sellerDescription String?       @db.VarChar(512)
+  milestoneCode     String?       @db.VarChar(128)
+  milestoneName     String?       @db.VarChar(255)
+  eventTime         DateTime
+  rawData           Json
+  createdAt         DateTime      @default(now())
+
+  @@index([orderId])
+  @@index([eventTime])
+}

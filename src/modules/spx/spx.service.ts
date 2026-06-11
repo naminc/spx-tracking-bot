@@ -27,6 +27,8 @@ export type NormalizedSpxRecord = {
   trackingCode: string;
   trackingName?: string;
   status: string;
+  location?: string;
+  nextLocation?: string;
   description?: string;
   buyerDescription?: string;
   sellerDescription?: string;
@@ -47,6 +49,59 @@ const toOptionalString = (value: unknown): string | undefined => {
 const toRequiredString = (value: unknown): string | undefined => {
   const stringValue = toOptionalString(value)?.trim();
   return stringValue ? stringValue : undefined;
+};
+
+const getObjectStringValue = (
+  value: Record<string, unknown>,
+  keys: string[],
+): string | undefined => {
+  for (const key of keys) {
+    const stringValue = toLocationString(value[key]);
+
+    if (stringValue) {
+      return stringValue;
+    }
+  }
+
+  return undefined;
+};
+
+const toLocationString = (value: unknown): string | undefined => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return toRequiredString(value);
+  }
+
+  if (Array.isArray(value)) {
+    const values = value.map((item) => toLocationString(item)).filter(Boolean);
+    return values.length > 0 ? values.join(', ') : undefined;
+  }
+
+  if (typeof value === 'object') {
+    return getObjectStringValue(value as Record<string, unknown>, [
+      'name',
+      'location_name',
+      'locationName',
+      'station_name',
+      'stationName',
+      'hub_name',
+      'hubName',
+      'warehouse_name',
+      'warehouseName',
+      'address',
+      'full_address',
+      'fullAddress',
+      'display_name',
+      'displayName',
+      'description',
+      'value',
+    ]);
+  }
+
+  return undefined;
 };
 
 const toTimestampSeconds = (value: unknown): number | undefined => {
@@ -127,6 +182,8 @@ export class SpxService {
       trackingCode,
       trackingName: toOptionalString(record.tracking_name),
       status,
+      location: toLocationString(record.location),
+      nextLocation: toLocationString(record.next_location),
       description: toOptionalString(record.description),
       buyerDescription: toOptionalString(record.buyer_description),
       sellerDescription: toOptionalString(record.seller_description),

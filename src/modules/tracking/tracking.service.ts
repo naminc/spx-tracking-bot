@@ -21,6 +21,8 @@ export type TrackingNotification = {
   trackingNumber: string;
   status: string;
   trackingCode: string;
+  location?: string;
+  nextLocation?: string;
   milestoneName?: string;
   eventTime: Date;
   finalStatus: FinalStatus;
@@ -129,6 +131,8 @@ export class TrackingService {
             trackingNumber: order.trackingNumber,
             status: latestRecord.status,
             trackingCode: latestRecord.trackingCode,
+            location: latestRecord.location,
+            nextLocation: latestRecord.nextLocation,
             milestoneName: latestRecord.milestoneName,
             eventTime: latestRecord.eventTime,
             finalStatus,
@@ -167,11 +171,15 @@ export class TrackingService {
       trackingCode: order.currentStatusCode,
       trackingName: undefined,
       status: order.currentStatus,
+      location: order.currentLocation ?? undefined,
+      nextLocation: order.nextLocation ?? undefined,
       milestoneCode: order.milestoneCode ?? undefined,
       milestoneName: order.milestoneName ?? undefined,
       eventTime: order.lastEventTime,
       rawData: {
         tracking_code: order.currentStatusCode,
+        location: order.currentLocation ?? undefined,
+        next_location: order.nextLocation ?? undefined,
         milestone_code: order.milestoneCode ?? undefined,
         milestone_name: order.milestoneName ?? undefined,
         buyer_description: order.currentStatus,

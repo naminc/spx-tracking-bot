@@ -211,6 +211,8 @@ export class TelegramService {
           trackingNumber: result.order.trackingNumber,
           status: result.order.currentStatus,
           trackingCode: result.latestRecord.trackingCode,
+          location: result.latestRecord.location,
+          nextLocation: result.latestRecord.nextLocation,
           milestoneName: result.latestRecord.milestoneName,
           eventTime: result.order.lastEventTime,
           finalStatus: result.order.finalStatus,

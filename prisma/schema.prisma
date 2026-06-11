@@ -20,6 +20,8 @@ model TrackingOrder {
   telegramChatId    String            @db.VarChar(64)
   currentStatus     String            @db.VarChar(512)
   currentStatusCode String            @db.VarChar(128)
+  currentLocation   String?           @db.VarChar(255)
+  nextLocation      String?           @db.VarChar(255)
   milestoneCode     String?           @db.VarChar(128)
   milestoneName     String?           @db.VarChar(255)
   lastEventTime     DateTime
@@ -41,6 +43,8 @@ model TrackingHistory {
   trackingCode      String        @db.VarChar(128)
   trackingName      String?       @db.VarChar(255)
   status            String        @db.VarChar(512)
+  location          String?       @db.VarChar(255)
+  nextLocation      String?       @db.VarChar(255)
   description       String?       @db.VarChar(512)
   buyerDescription  String?       @db.VarChar(512)
   sellerDescription String?       @db.VarChar(512)

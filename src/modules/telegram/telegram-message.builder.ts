@@ -64,9 +64,9 @@ export const telegramMessageBuilder = {
 
 <b>📌 Lệnh hỗ trợ</b>
 ━━━━━━━━━━━━━━━━
-➕ <b>/add SPXVN...</b> - Thêm đơn hàng cần theo dõi
+➕ <b>/add SPXVNXXX...</b> - Thêm đơn hàng cần theo dõi
 📦 <b>/list</b> - Xem danh sách đơn đang theo dõi
-🗑️ <b>/remove SPXVN...</b> - Xoá đơn khỏi danh sách
+🗑️ <b>/remove SPXVNXXX...</b> - Xoá đơn khỏi danh sách
 ☎️ <b>/contact</b> - Liên hệ admin
 ℹ️ <b>/start</b> - Xem hướng dẫn
 
@@ -86,7 +86,8 @@ export const telegramMessageBuilder = {
 ━━━━━━━━━━━━━━━━
 
 ℹ️ <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn ngay sau lệnh <b>/add</b>.
-🧾 <b>Cú pháp:</b> <code>/add SPXVN063015366786</code>`;
+⌨️ <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt;</code></b>
+🧾 <b>Ví dụ:</b> <code>/add SPXVN063015366786</code>`;
   },
 
   directTrackingNumberNotAllowed(trackingNumber: string): string {
@@ -170,7 +171,8 @@ ${orderItems}
 ━━━━━━━━━━━━━━━━
 
 ℹ️ <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cần xoá sau lệnh <b>/remove</b>.
-🧾 <b>Cú pháp:</b> <code>/remove SPXVN063015366786</code>`;
+⌨️ <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b>
+🧾 <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>`;
   },
 
   invalidTrackingNumber(): string {

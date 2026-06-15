@@ -9,15 +9,40 @@ import {
   trackingService,
 } from '../tracking/tracking.service';
 import { telegramMessageBuilder } from './telegram-message.builder';
-import type { TelegramGetUpdatesResponse, TelegramUpdate } from './telegram.types';
+import type {
+  TelegramGetUpdatesResponse,
+  TelegramInlineKeyboardMarkup,
+  TelegramUpdate,
+} from './telegram.types';
+
+type SendMessageOptions = {
+  replyMarkup?: TelegramInlineKeyboardMarkup;
+};
 
 export class TelegramService {
   private isPolling = false;
   private pollingOffset = 0;
+  private readonly startMenuReplyMarkup: TelegramInlineKeyboardMarkup = {
+    inline_keyboard: [
+      [
+        { text: '➕ Thêm đơn hàng', callback_data: 'start:add' },
+        { text: '🗑️ Xoá đơn hàng', callback_data: 'start:remove' },
+      ],
+      [{ text: '📦 Danh sách đơn hàng', callback_data: 'start:list' }],
+    ],
+  };
+  private readonly backToStartMenuReplyMarkup: TelegramInlineKeyboardMarkup = {
+    inline_keyboard: [[{ text: '⬅️ Quay lại menu', callback_data: 'start:menu' }]],
+  };
 
   constructor(private readonly service: TrackingService = trackingService) {}
 
   async handleUpdate(update: TelegramUpdate): Promise<void> {
+    if (update.callback_query) {
+      await this.handleCallbackQuery(update.callback_query);
+      return;
+    }
+
     const message = update.message;
 
     if (!message?.text) {
@@ -26,10 +51,10 @@ export class TelegramService {
 
     const chatId = String(message.chat.id);
     const text = message.text.trim();
-    const command = text.split(/\s+/)[0];
+    const command = text.split(/\s+/)[0].split('@')[0];
 
-    if (text === '/start') {
-      await this.sendMessage(chatId, telegramMessageBuilder.start());
+    if (command === '/start') {
+      await this.sendStartMessage(chatId);
       return;
     }
 
@@ -38,12 +63,12 @@ export class TelegramService {
       return;
     }
 
-    if (text === '/list') {
+    if (command === '/list') {
       await this.sendOrderList(chatId);
       return;
     }
 
-    if (text === '/contact') {
+    if (command === '/contact') {
       await this.sendMessage(chatId, telegramMessageBuilder.contact(env.TELEGRAM_ADMIN_USERNAME));
       return;
     }
@@ -84,7 +109,7 @@ export class TelegramService {
     await this.sendMessage(notification.chatId, telegramMessageBuilder.update(notification));
   }
 
-  async sendMessage(chatId: string, text: string): Promise<void> {
+  async sendMessage(chatId: string, text: string, options: SendMessageOptions = {}): Promise<void> {
     if (!env.TELEGRAM_BOT_TOKEN) {
       logger.warn({ chatId }, 'TELEGRAM_BOT_TOKEN is empty; skipped Telegram send');
       return;
@@ -95,6 +120,7 @@ export class TelegramService {
         chat_id: chatId,
         text,
         parse_mode: 'HTML',
+        reply_markup: options.replyMarkup,
       });
     } catch (error) {
       logger.error({ err: error, chatId }, 'Failed to send Telegram message');
@@ -140,7 +166,7 @@ export class TelegramService {
             params: {
               offset: this.pollingOffset || undefined,
               timeout: env.TELEGRAM_POLLING_TIMEOUT_SECONDS,
-              allowed_updates: JSON.stringify(['message']),
+              allowed_updates: JSON.stringify(['message', 'callback_query']),
             },
             timeout: (env.TELEGRAM_POLLING_TIMEOUT_SECONDS + 5) * 1000,
           },
@@ -176,6 +202,63 @@ export class TelegramService {
     return new Promise((resolve) => {
       setTimeout(resolve, milliseconds);
     });
+  }
+
+  private async sendStartMessage(chatId: string): Promise<void> {
+    await this.sendMessage(chatId, telegramMessageBuilder.start(), {
+      replyMarkup: this.startMenuReplyMarkup,
+    });
+  }
+
+  private async handleCallbackQuery(
+    callbackQuery: NonNullable<TelegramUpdate['callback_query']>,
+  ): Promise<void> {
+    const chatId = callbackQuery.message?.chat.id ? String(callbackQuery.message.chat.id) : undefined;
+
+    await this.answerCallbackQuery(callbackQuery.id);
+
+    if (!chatId || !callbackQuery.data) {
+      return;
+    }
+
+    if (callbackQuery.data === 'start:menu') {
+      await this.sendStartMessage(chatId);
+      return;
+    }
+
+    if (callbackQuery.data === 'start:add') {
+      await this.sendMessage(chatId, telegramMessageBuilder.addInstruction(), {
+        replyMarkup: this.backToStartMenuReplyMarkup,
+      });
+      return;
+    }
+
+    if (callbackQuery.data === 'start:remove') {
+      await this.sendMessage(chatId, telegramMessageBuilder.removeMissingTrackingNumber(), {
+        replyMarkup: this.backToStartMenuReplyMarkup,
+      });
+      return;
+    }
+
+    if (callbackQuery.data === 'start:list') {
+      await this.sendOrderList(chatId, {
+        replyMarkup: this.backToStartMenuReplyMarkup,
+      });
+    }
+  }
+
+  private async answerCallbackQuery(callbackQueryId: string): Promise<void> {
+    if (!env.TELEGRAM_BOT_TOKEN) {
+      return;
+    }
+
+    try {
+      await axios.post(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+        callback_query_id: callbackQueryId,
+      });
+    } catch (error) {
+      logger.error(this.toSafeTelegramErrorLog(error), 'Failed to answer Telegram callback query');
+    }
   }
 
   private async handleAdd(chatId: string, text: string): Promise<void> {
@@ -248,12 +331,13 @@ export class TelegramService {
     }
   }
 
-  private async sendOrderList(chatId: string): Promise<void> {
+  private async sendOrderList(chatId: string, options: SendMessageOptions = {}): Promise<void> {
     const orders = await this.service.listOrders(chatId, false);
 
     await this.sendMessage(
       chatId,
       orders.length > 0 ? telegramMessageBuilder.list(orders) : telegramMessageBuilder.emptyList(),
+      options,
     );
   }
 }

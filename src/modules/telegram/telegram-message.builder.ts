@@ -36,6 +36,16 @@ const formatDate = (date: Date): string =>
     timeZone: 'Asia/Ho_Chi_Minh',
   }).format(date);
 
+const removeCommandIcon = '<tg-emoji emoji-id="5836790414153094482">❎</tg-emoji>';
+const contactCommandIcon = '<tg-emoji emoji-id="5443038326535759644">☎️</tg-emoji>';
+const addCommandIcon = '<tg-emoji emoji-id="4956368289371522616">➕</tg-emoji>';
+const startCommandIcon = '<tg-emoji emoji-id="6203791465471022369">ℹ️</tg-emoji>';
+const listCommandIcon = '<tg-emoji emoji-id="5877618313139327986">📋</tg-emoji>';
+const pingCommandIcon = '<tg-emoji emoji-id="5213260226194583825">📌</tg-emoji>';
+const truckCommandIcon = '<tg-emoji emoji-id="6314504740130525114">🚚</tg-emoji>';
+const helloCommandIcon = '<tg-emoji emoji-id="6143364153244390082">👋</tg-emoji>';
+const exampleCommandIcon = '<tg-emoji emoji-id="6138429248706188838">🧾</tg-emoji>';
+
 const buildLocationLines = (input: { location?: string; nextLocation?: string }): string => {
   const lines = [
     input.location ? `📍 <b>Vị trí hiện tại:</b> ${escapeHtml(input.location)}` : undefined,
@@ -57,20 +67,20 @@ const buildCompletedMessage = (title: string, input: TrackingMessageInput): stri
 
 export const telegramMessageBuilder = {
   start(): string {
-    return `<b>🚚 SPX Tracking Bot</b>
+    return `<b>${truckCommandIcon} SPX Tracking Bot</b>
 ━━━━━━━━━━━━━━━━
 
-👋 Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng SPX tự động.
+${helloCommandIcon} Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng SPX tự động.
 
-<b>📌 Lệnh hỗ trợ</b>
+<b>${pingCommandIcon} Lệnh hỗ trợ</b>
 ━━━━━━━━━━━━━━━━
-➕ <b>/add SPXVNXXX...</b> - Thêm đơn hàng cần theo dõi
-📦 <b>/list</b> - Xem danh sách đơn đang theo dõi
-🗑️ <b>/remove SPXVNXXX...</b> - Xoá đơn khỏi danh sách
-☎️ <b>/contact</b> - Liên hệ admin
-ℹ️ <b>/start</b> - Xem hướng dẫn
+${addCommandIcon} <b>/add SPXVNXXX...</b> - Thêm đơn hàng cần theo dõi
+${listCommandIcon} <b>/list</b> - Xem danh sách đơn đang theo dõi
+${removeCommandIcon} <b>/remove SPXVNXXX...</b> - Xoá đơn khỏi danh sách
+${contactCommandIcon} <b>/contact</b> - Liên hệ admin
+${startCommandIcon} <b>/start</b> - Xem hướng dẫn
 
-🧾 <b>Ví dụ:</b> <code>/add SPXVN063015366786</code>`;
+${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786</code>`;
   },
 
   contact(adminUsername: string): string {

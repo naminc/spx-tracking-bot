@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.nam1nc.com/api/:path*"
+    },
+    { "source": "/(.*)", "destination": "/" }
+  ]
+}

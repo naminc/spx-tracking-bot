@@ -27,7 +27,7 @@ function countByFinalStatus(orders: TrackingOrder[]) {
 
 export function DashboardPage() {
   const ordersQuery = useTrackingOrders({ includeCompleted: true });
-  const historiesQuery = useTrackingHistories({ limit: 50 });
+  const historiesQuery = useTrackingHistories();
   const usersQuery = useUsers();
   const settingsQuery = useSettings();
 

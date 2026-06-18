@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger/logger';
 import { FinalStatus } from '../tracking/final-status';
-import { trackingNumberSchema } from '../tracking/tracking.schema';
+import { MAX_ORDER_NOTE_LENGTH, trackingNumberSchema } from '../tracking/tracking.schema';
 import {
   TrackingNotification,
   TrackingService,
@@ -131,15 +131,35 @@ export class TelegramService {
     }
 
     try {
-      await axios.post(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-        reply_markup: options.replyMarkup,
-      });
+      await this.postTelegramMessage(chatId, text, options);
     } catch (error) {
       logger.error({ err: error, chatId }, 'Failed to send Telegram message');
     }
+  }
+
+  async sendMessageOrThrow(
+    chatId: string,
+    text: string,
+    options: SendMessageOptions = {},
+  ): Promise<void> {
+    if (!env.TELEGRAM_BOT_TOKEN) {
+      throw new Error('TELEGRAM_BOT_TOKEN is empty');
+    }
+
+    await this.postTelegramMessage(chatId, text, options);
+  }
+
+  private async postTelegramMessage(
+    chatId: string,
+    text: string,
+    options: SendMessageOptions,
+  ): Promise<void> {
+    await axios.post(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: options.replyMarkup,
+    });
   }
 
   async startPolling(): Promise<void> {
@@ -336,10 +356,17 @@ export class TelegramService {
       return;
     }
 
-    const [, rawTrackingNumber] = text.split(/\s+/);
+    const addMatch = text.match(/^\/add(?:@\w+)?(?:\s+(\S+))?(?:\s+([\s\S]+))?$/i);
+    const rawTrackingNumber = addMatch?.[1];
+    const note = addMatch?.[2]?.trim();
 
     if (!rawTrackingNumber) {
       await this.sendMessage(chatId, telegramMessageBuilder.addInstruction());
+      return;
+    }
+
+    if (note && note.length > MAX_ORDER_NOTE_LENGTH) {
+      await this.sendMessage(chatId, telegramMessageBuilder.noteTooLong(MAX_ORDER_NOTE_LENGTH));
       return;
     }
 
@@ -354,12 +381,13 @@ export class TelegramService {
       const alreadyExists = await this.service.hasOrder(parsed.data, chatId);
 
       if (alreadyExists) {
-        await this.sendMessage(chatId, telegramMessageBuilder.alreadyExists(parsed.data));
+        const result = await this.service.addOrder(parsed.data, chatId, note);
+        await this.sendMessage(chatId, telegramMessageBuilder.alreadyExists(result));
         return;
       }
 
       await this.sendMessage(chatId, telegramMessageBuilder.checking(parsed.data));
-      const result = await this.service.addOrder(parsed.data, chatId);
+      const result = await this.service.addOrder(parsed.data, chatId, note);
       await this.sendMessage(chatId, telegramMessageBuilder.addSuccess(result));
 
       if (result.order.finalStatus !== FinalStatus.PENDING) {
@@ -373,6 +401,7 @@ export class TelegramService {
           milestoneName: result.latestRecord.milestoneName,
           eventTime: result.order.lastEventTime,
           finalStatus: result.order.finalStatus,
+          note: result.order.note ?? undefined,
         });
       }
     } catch (error) {

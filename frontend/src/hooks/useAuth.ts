@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api, ApiClientError } from "../lib/api/client";
+import { apiClient, ApiClientError } from "../lib/api/client";
 import type { AdminUser } from "../lib/types/admin-auth";
 
 const SESSION_COOKIE_ERROR_MESSAGE =
-  "Dang nhap thanh cong nhung trinh duyet khong luu hoac khong gui session. Kiem tra cookie/CORS/HTTPS, hoac neu dung dien thoai thi khong tro API ve localhost.";
+  "Login successful but session cookie was not saved. Please ensure that your browser allows cookies and try again.";
 
 export function useAuth() {
   const { data: user, isLoading, error } = useQuery<AdminUser>({
     queryKey: ["auth", "me"],
-    queryFn: () => api.get<AdminUser>("/admin/auth/me"),
+    queryFn: () => apiClient.get<AdminUser>("/admin/auth/me"),
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
@@ -23,7 +23,7 @@ export function useAuth() {
 export function useRequestOtp() {
   return useMutation({
     mutationFn: (identifier: string) =>
-      api.post<{ success: boolean; telegramId: string }>("/admin/auth/request-otp", { identifier }),
+      apiClient.post<{ success: boolean; telegramId: string }>("/admin/auth/request-otp", { identifier }),
     onError: (e: Error) => toast.error(e.message),
   });
 }
@@ -32,10 +32,10 @@ export function useVerifyOtp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { telegramId: string; otp: string }) => {
-      await api.post<AdminUser>("/admin/auth/verify-otp", data);
+      await apiClient.post<AdminUser>("/admin/auth/verify-otp", data);
 
       try {
-        return await api.get<AdminUser>("/admin/auth/me");
+        return await apiClient.get<AdminUser>("/admin/auth/me");
       } catch (error) {
         if (error instanceof ApiClientError && error.status === 401) {
           throw new ApiClientError(
@@ -58,7 +58,7 @@ export function useVerifyOtp() {
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post("/admin/auth/logout"),
+    mutationFn: () => apiClient.post("/admin/auth/logout"),
     onSuccess: () => {
       toast.success("Logged out");
       qc.resetQueries({ queryKey: ["auth", "me"] });

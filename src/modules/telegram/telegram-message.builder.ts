@@ -4,6 +4,7 @@ type OrderListItem = {
   trackingNumber: string;
   currentStatus: string;
   lastEventTime: Date;
+  note?: string | null;
 };
 
 type TrackingMessageInput = {
@@ -12,6 +13,7 @@ type TrackingMessageInput = {
   location?: string;
   nextLocation?: string;
   eventTime: Date;
+  note?: string | null;
 };
 
 type UpdateMessageInput = TrackingMessageInput & {
@@ -45,6 +47,7 @@ const pingCommandIcon = '<tg-emoji emoji-id="5213260226194583825">📌</tg-emoji
 const truckCommandIcon = '<tg-emoji emoji-id="6314504740130525114">🚚</tg-emoji>';
 const helloCommandIcon = '<tg-emoji emoji-id="6143364153244390082">👋</tg-emoji>';
 const exampleCommandIcon = '<tg-emoji emoji-id="6138429248706188838">🧾</tg-emoji>';
+const noteCommandIcon = '<tg-emoji emoji-id="6167959932004997710">📝</tg-emoji>';
 
 const buildLocationLines = (input: { location?: string; nextLocation?: string }): string => {
   const lines = [
@@ -57,10 +60,15 @@ const buildLocationLines = (input: { location?: string; nextLocation?: string })
   return lines ? `\n${lines}` : '';
 };
 
+const buildNoteLine = (note?: string | null): string => {
+  const trimmedNote = note?.trim();
+  return trimmedNote ? `\n📝 <b>Ghi chú:</b> ${escapeHtml(trimmedNote)}` : '';
+};
+
 const buildCompletedMessage = (title: string, input: TrackingMessageInput): string => `<b>${title}</b>
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildNoteLine(input.note)}
 📌 <b>Trạng thái:</b> ${escapeHtml(input.status)}${buildLocationLines(input)}
 🕒 <b>Thời gian:</b> ${escapeHtml(formatDate(input.eventTime))}
 ⛔ <b>Theo dõi:</b> Bot đã tự động ngừng theo dõi đơn này.`;
@@ -74,13 +82,14 @@ ${helloCommandIcon} Xin chào! Mình có thể giúp bạn theo dõi trạng th�
 
 <b>${pingCommandIcon} Lệnh hỗ trợ</b>
 ━━━━━━━━━━━━━━━━
-${addCommandIcon} <b>/add SPXVNXXX...</b> - Thêm đơn hàng cần theo dõi
+${addCommandIcon} <b>/add &lt;mã vận đơn&gt; &lt;ghi chú&gt;</b> - Thêm đơn hàng cần theo dõi
 ${listCommandIcon} <b>/list</b> - Xem danh sách đơn đang theo dõi
-${removeCommandIcon} <b>/remove SPXVNXXX...</b> - Xoá đơn khỏi danh sách
+${removeCommandIcon} <b>/remove &lt;mã vận đơn&gt;</b> - Xoá đơn khỏi danh sách
 ${contactCommandIcon} <b>/contact</b> - Liên hệ admin
 ${startCommandIcon} <b>/start</b> - Xem hướng dẫn
 
-${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786</code>`;
+${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
   },
 
   contact(adminUsername: string): string {
@@ -99,12 +108,13 @@ Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sa
   },
 
   addInstruction(): string {
-    return `<b>➕ Thêm đơn SPX</b>
+    return `<b>${addCommandIcon} Thêm đơn SPX</b>
 ━━━━━━━━━━━━━━━━
 
-ℹ️ <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn ngay sau lệnh <b>/add</b>.
-⌨️ <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt;</code></b>
-🧾 <b>Ví dụ:</b> <code>/add SPXVN063015366786</code>`;
+${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn ngay sau lệnh <b>/add</b>.
+⌨️ <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code></b>
+${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống
+${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786 iPhone 17</code>`;
   },
 
   directTrackingNumberNotAllowed(trackingNumber: string): string {
@@ -112,7 +122,7 @@ Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sa
 ━━━━━━━━━━━━━━━━
 
 ⚠️ <b>Lý do:</b> Bot chỉ thêm đơn khi bạn gửi đúng cú pháp.
-🧾 <b>Cú pháp:</b> <code>/add ${escapeHtml(trackingNumber)}</code>`;
+🧾 <b>Cú pháp:</b> <code>/add ${escapeHtml(trackingNumber)} &lt;ghi_chú&gt;</code>`;
   },
 
   checking(trackingNumber: string): string {
@@ -127,25 +137,25 @@ Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sa
     return `<b>✅ Đã thêm đơn SPX thành công!</b>
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(result.order.trackingNumber)}</code>
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(result.order.trackingNumber)}</code>${buildNoteLine(result.order.note)}
 📌 <b>Trạng thái hiện tại:</b> ${escapeHtml(result.order.currentStatus)}${buildLocationLines(result.latestRecord)}
 🕒 <b>Thời gian cập nhật:</b> ${escapeHtml(formatDate(result.order.lastEventTime))}
 🔔 <b>Theo dõi:</b> Bot sẽ tự động kiểm tra và gửi thông báo khi có trạng thái mới.`;
   },
 
-  alreadyExists(trackingNumber: string): string {
+  alreadyExists(result: AddTrackingResult): string {
     return `<b>ℹ️ Đơn này đang được theo dõi</b>
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(trackingNumber)}</code>
-ℹ️ <b>Gợi ý:</b> Bạn có thể dùng <b>/list</b> để xem danh sách đơn đang theo dõi.`;
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(result.order.trackingNumber)}</code>${buildNoteLine(result.order.note)}
+${result.noteUpdated ? '✅ <b>Cập nhật:</b> Đã lưu ghi chú mới cho đơn này.\n' : ''}ℹ️ <b>Gợi ý:</b> Bạn có thể dùng <b>/list</b> để xem danh sách đơn đang theo dõi.`;
   },
 
   update(input: UpdateMessageInput): string {
     return `<b>🔔 SPX Update:</b> ${escapeHtml(input.status)}
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildNoteLine(input.note)}
 📌 <b>Trạng thái:</b> ${escapeHtml(input.status)}
 🏷️ <b>Mã trạng thái:</b> <code>${escapeHtml(input.trackingCode)}</code>
 🚚 <b>Giai đoạn:</b> ${escapeHtml(input.milestoneName || 'Không có dữ liệu')}${buildLocationLines(input)}
@@ -155,7 +165,7 @@ Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sa
   list(orders: OrderListItem[]): string {
     const orderItems = orders
       .map(
-        (order, index) => `<b>${index + 1}. 📦 <code>${escapeHtml(order.trackingNumber)}</code></b>
+        (order, index) => `<b>${index + 1}. 📦 <code>${escapeHtml(order.trackingNumber)}</code></b>${buildNoteLine(order.note)}
 📌 <b>Trạng thái:</b> ${escapeHtml(order.currentStatus)}
 🕒 <b>Thời gian:</b> ${escapeHtml(formatDate(order.lastEventTime))}`,
       )
@@ -184,12 +194,12 @@ ${orderItems}
   },
 
   removeMissingTrackingNumber(): string {
-    return `<b>🗑️ Xoá đơn theo dõi</b>
+    return `<b>${removeCommandIcon} Xoá đơn theo dõi</b>
 ━━━━━━━━━━━━━━━━
 
-ℹ️ <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cần xoá sau lệnh <b>/remove</b>.
+${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cần xoá sau lệnh <b>/remove</b>.
 ⌨️ <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b>
-🧾 <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>`;
+ ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>`;
   },
 
   invalidTrackingNumber(): string {
@@ -198,6 +208,14 @@ ${orderItems}
 
 🧾 <b>Định dạng:</b> <code>SPXVN063015366786</code>
 🔁 <b>Gợi ý:</b> Vui lòng kiểm tra lại và gửi lại mã đúng.`;
+  },
+
+  noteTooLong(maxLength: number): string {
+    return `<b>❌ Ghi chú quá dài</b>
+━━━━━━━━━━━━━━━━
+
+📝 <b>Giới hạn:</b> Ghi chú tối đa ${escapeHtml(maxLength)} ký tự.
+🔁 <b>Gợi ý:</b> Vui lòng rút gọn ghi chú rồi gửi lại.`;
   },
 
   delivered(input: TrackingMessageInput): string {

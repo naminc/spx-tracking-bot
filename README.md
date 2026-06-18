@@ -32,6 +32,25 @@ ADMIN_JWT_SECRET=change-this-admin-jwt-secret
 ADMIN_JWT_EXPIRES_IN_SECONDS=604800
 ```
 
+## Frontend API URL
+
+The Vite frontend calls the backend through `VITE_API_BASE_URL`; API requests must go through `frontend/src/lib/api/client.ts`.
+The admin auth flow uses an httpOnly cookie, so the API helper sends `credentials: "include"` and does not store tokens in `localStorage`.
+
+Local frontend development:
+
+```env
+VITE_API_BASE_URL=http://localhost:3000/api
+```
+
+When using the localhost API URL, open Vite at `http://localhost:5173` so browser cookies are sent consistently.
+
+Production/Vercel:
+
+```env
+VITE_API_BASE_URL=https://api.example.com/api
+```
+
 ## Response Format
 
 All HTTP APIs use the shared response helper:

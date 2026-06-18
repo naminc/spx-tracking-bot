@@ -51,7 +51,6 @@ export function TrackingHistoryPage() {
     trackingNumber: filters.trackingNumber || undefined,
     telegramChatId: filters.telegramChatId || undefined,
     userId: filters.userId || undefined,
-    limit: 200,
   });
   const usersQuery = useUsers();
 
@@ -221,6 +220,10 @@ export function TrackingHistoryPage() {
               <div>
                 <dt className="text-gray-500">Tracking Number</dt>
                 <dd className="font-mono text-gray-900">{selectedHistory.order?.trackingNumber ?? "-"}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Note</dt>
+                <dd className="text-gray-900">{optionalText(selectedHistory.order?.note)}</dd>
               </div>
               <div>
                 <dt className="text-gray-500">User</dt>

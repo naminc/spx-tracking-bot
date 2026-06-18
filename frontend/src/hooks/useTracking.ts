@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api } from "../lib/api/client";
+import { apiClient } from "../lib/api/client";
 import type { TrackingHistory, TrackingOrder } from "../lib/types/tracking";
 
 type OrderFilters = {
@@ -22,6 +22,7 @@ type HistoryFilters = {
 type CreateTrackingOrderResult = {
   order: TrackingOrder;
   alreadyExists: boolean;
+  noteUpdated: boolean;
 };
 
 function toQueryString(params: Record<string, string | number | boolean | undefined>): string {
@@ -41,7 +42,7 @@ export function useTrackingOrders(filters: OrderFilters) {
   return useQuery<TrackingOrder[]>({
     queryKey: ["tracking-orders", filters],
     queryFn: () =>
-      api.get(
+      apiClient.get(
         `/orders${toQueryString({
           includeCompleted: filters.includeCompleted,
           trackingNumber: filters.trackingNumber?.trim(),
@@ -57,12 +58,17 @@ export function useCreateTrackingOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { trackingNumber: string; telegramChatId?: string }) =>
-      api.post<CreateTrackingOrderResult>("/orders", input),
+    mutationFn: (input: { trackingNumber: string; telegramChatId?: string; note?: string }) =>
+      apiClient.post<CreateTrackingOrderResult>("/orders", input),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
       queryClient.invalidateQueries({ queryKey: ["tracking-histories"] });
       if (result.alreadyExists) {
+        if (result.noteUpdated) {
+          toast.warning("Đơn hàng đã tồn tại, đã cập nhật ghi chú");
+          return;
+        }
+
         toast.warning("Đơn hàng đã tồn tại trong danh sách theo dõi");
         return;
       }
@@ -78,7 +84,7 @@ export function useDeleteTrackingOrder() {
 
   return useMutation({
     mutationFn: (input: { trackingNumber: string; telegramChatId: string }) =>
-      api.delete<TrackingOrder>(
+      apiClient.delete<TrackingOrder>(
         `/orders/${input.trackingNumber}${toQueryString({ telegramChatId: input.telegramChatId })}`,
       ),
     onSuccess: () => {
@@ -94,13 +100,13 @@ export function useTrackingHistories(filters: HistoryFilters = {}) {
   return useQuery<TrackingHistory[]>({
     queryKey: ["tracking-histories", filters],
     queryFn: () =>
-      api.get(
+      apiClient.get(
         `/orders/histories${toQueryString({
           trackingNumber: filters.trackingNumber?.trim(),
           telegramChatId: filters.telegramChatId?.trim(),
           userId: filters.userId?.trim(),
           telegramUserId: filters.telegramUserId?.trim(),
-          limit: filters.limit ?? 100,
+          limit: filters.limit,
         })}`,
       ),
   });

@@ -14,12 +14,26 @@ enum FinalStatus {
   CANCELLED
 }
 
+enum BroadcastStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
+enum BroadcastRecipientStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model TrackingOrder {
   id                Int               @id @default(autoincrement())
   trackingNumber    String            @db.VarChar(64)
   telegramChatId    String            @db.VarChar(64)
   userId            Int?
   user              User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  note              String?           @db.VarChar(512)
   currentStatus     String            @db.VarChar(512)
   currentStatusCode String            @db.VarChar(128)
   currentLocation   String?           @db.VarChar(255)
@@ -62,15 +76,52 @@ model TrackingHistory {
 }
 
 model User {
-  id             Int             @id @default(autoincrement())
-  telegramUserId String          @unique @db.VarChar(64)
-  username       String?         @db.VarChar(64)
-  firstName      String?         @db.VarChar(128)
-  lastName       String?         @db.VarChar(128)
-  createdAt      DateTime        @default(now())
-  orders         TrackingOrder[]
+  id                  Int                  @id @default(autoincrement())
+  telegramUserId      String               @unique @db.VarChar(64)
+  username            String?              @db.VarChar(64)
+  firstName           String?              @db.VarChar(128)
+  lastName            String?              @db.VarChar(128)
+  createdAt           DateTime             @default(now())
+  orders              TrackingOrder[]
+  broadcastRecipients BroadcastRecipient[]
 
   @@index([username])
+}
+
+model Broadcast {
+  id          Int                  @id @default(autoincrement())
+  title       String?              @db.VarChar(255)
+  message     String               @db.Text
+  status      BroadcastStatus      @default(DRAFT)
+  targetType  String               @db.VarChar(32)
+  totalCount  Int                  @default(0)
+  sentCount   Int                  @default(0)
+  failedCount Int                  @default(0)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  sentAt      DateTime?
+  recipients  BroadcastRecipient[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model BroadcastRecipient {
+  id             Int                      @id @default(autoincrement())
+  broadcastId    Int
+  broadcast      Broadcast                @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  userId         Int?
+  user           User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  telegramUserId String                   @db.VarChar(64)
+  status         BroadcastRecipientStatus @default(PENDING)
+  errorMessage   String?                  @db.VarChar(512)
+  sentAt         DateTime?
+  createdAt      DateTime                 @default(now())
+
+  @@index([broadcastId])
+  @@index([userId])
+  @@index([telegramUserId])
+  @@index([status])
 }
 
 model AppSetting {

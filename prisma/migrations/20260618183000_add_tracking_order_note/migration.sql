@@ -1,0 +1,1 @@
+ALTER TABLE `TrackingOrder` ADD COLUMN `note` VARCHAR(512) NULL;

@@ -9,11 +9,13 @@ import {
   TrackingRepository,
   trackingRepository,
 } from './tracking.repository';
+import { MAX_ORDER_NOTE_LENGTH } from './tracking.schema';
 
 export type AddTrackingResult = {
   order: TrackingOrderEntity;
   latestRecord: NormalizedSpxRecord;
   alreadyExists: boolean;
+  noteUpdated: boolean;
 };
 
 export type TrackingNotification = {
@@ -26,6 +28,7 @@ export type TrackingNotification = {
   milestoneName?: string;
   eventTime: Date;
   finalStatus: FinalStatus;
+  note?: string;
 };
 
 type ListOrdersFilters = {
@@ -41,7 +44,7 @@ type ListHistoriesFilters = {
   telegramChatId?: string;
   userId?: number;
   telegramUserId?: string;
-  limit: number;
+  limit?: number;
 };
 
 const normalize = (value: string): string => value.trim().toLowerCase();
@@ -84,17 +87,28 @@ export class TrackingService {
     return this.repository.listHistories(filters);
   }
 
-  async addOrder(trackingNumber: string, telegramChatId = 'api'): Promise<AddTrackingResult> {
+  async addOrder(
+    trackingNumber: string,
+    telegramChatId = 'api',
+    note?: string | null,
+  ): Promise<AddTrackingResult> {
+    const normalizedNote = this.normalizeNote(note);
     const existingOrder = await this.repository.findByTrackingNumberAndChat(
       trackingNumber,
       telegramChatId,
     );
 
     if (existingOrder) {
+      const shouldUpdateNote = normalizedNote !== undefined && existingOrder.note !== normalizedNote;
+      const order = shouldUpdateNote
+        ? await this.repository.updateOrderNote(existingOrder.id, normalizedNote)
+        : existingOrder;
+
       return {
-        order: existingOrder,
-        latestRecord: this.orderToRecord(existingOrder),
+        order,
+        latestRecord: this.orderToRecord(order),
         alreadyExists: true,
+        noteUpdated: shouldUpdateNote,
       };
     }
 
@@ -103,12 +117,13 @@ export class TrackingService {
     const order = await this.repository.createOrder({
       trackingNumber,
       telegramChatId,
+      note: normalizedNote ?? null,
       latestRecord,
       finalStatus,
       isCompleted: finalStatus !== FinalStatus.PENDING,
     });
 
-    return { order, latestRecord, alreadyExists: false };
+    return { order, latestRecord, alreadyExists: false, noteUpdated: false };
   }
 
   async removeOrder(trackingNumber: string, telegramChatId = 'api'): Promise<TrackingOrderEntity> {
@@ -156,6 +171,7 @@ export class TrackingService {
             milestoneName: latestRecord.milestoneName,
             eventTime: latestRecord.eventTime,
             finalStatus,
+            note: order.note ?? undefined,
           });
         }
       } catch (error) {
@@ -206,6 +222,28 @@ export class TrackingService {
         actual_time: Math.floor(order.lastEventTime.getTime() / 1000),
       },
     };
+  }
+
+  private normalizeNote(note: string | null | undefined): string | null | undefined {
+    if (note === undefined) {
+      return undefined;
+    }
+
+    if (note === null) {
+      return null;
+    }
+
+    const trimmedNote = note.trim();
+
+    if (!trimmedNote) {
+      return null;
+    }
+
+    if (trimmedNote.length > MAX_ORDER_NOTE_LENGTH) {
+      throw new AppError(`Note must be at most ${MAX_ORDER_NOTE_LENGTH} characters`, 400);
+    }
+
+    return trimmedNote;
   }
 }
 

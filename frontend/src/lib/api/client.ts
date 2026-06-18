@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 type ApiResponse<T> = {
   success: true;
@@ -27,27 +27,41 @@ function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-function getNetworkErrorMessage(): string {
-  if (typeof window === "undefined") {
-    return "Khong ket noi duoc API. Kiem tra backend va cau hinh API.";
+function getApiBaseUrl(): string {
+  if (!API_BASE_URL) {
+    throw new ApiClientError(
+      "Missing VITE_API_BASE_URL. See frontend/.env.example for local and production API URL examples.",
+      "MISSING_API_BASE_URL",
+      0,
+    );
   }
 
-  const apiUrl = new URL(BASE_URL, window.location.origin);
+  return API_BASE_URL;
+}
+
+function getNetworkErrorMessage(): string {
+  if (typeof window === "undefined") {
+    return "Failed to connect to API. Please check the backend and VITE_API_BASE_URL.";
+  }
+
+  const apiUrl = new URL(getApiBaseUrl(), window.location.origin);
   const pageHost = window.location.hostname;
   const apiHost = apiUrl.hostname;
   const localhostHosts = ["localhost", "127.0.0.1", "::1"];
 
   if (localhostHosts.includes(apiHost) && !localhostHosts.includes(pageHost)) {
-    return "Khong ket noi duoc API. Frontend dang tro API ve localhost; tren dien thoai localhost la chinh dien thoai. Hay dung /api qua Vite proxy, IP LAN cua may chay backend hoac domain HTTPS.";
+    return "Failed to connect to API. VITE_API_BASE_URL is pointing to localhost; you are on a different host. Please use the LAN IP of the backend or an HTTPS domain.";
   }
 
-  return "Khong ket noi duoc API. Kiem tra backend, VITE_API_BASE_URL, CORS va HTTPS.";
+  return "Failed to connect to API. Please check the backend, VITE_API_BASE_URL, CORS, and HTTPS settings.";
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
+  const url = joinUrl(getApiBaseUrl(), path);
+
   try {
-    res = await fetch(joinUrl(BASE_URL, path), {
+    res = await fetch(url, {
       credentials: "include",
       headers: { "Content-Type": "application/json", ...options?.headers },
       ...options,
@@ -63,7 +77,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       json = JSON.parse(text);
     } catch {
       throw new ApiClientError(
-        "API tra ve du lieu khong hop le. Kiem tra proxy/backend response.",
+        "API returned invalid JSON. Please check the backend response.",
         "INVALID_JSON",
         res.status
       );
@@ -90,7 +104,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return (json as ApiResponse<T>).data as T;
 }
 
-export const api = {
+export const apiClient = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {

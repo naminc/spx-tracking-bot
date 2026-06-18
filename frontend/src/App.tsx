@@ -4,6 +4,7 @@ import { AdminLayout } from "./layouts/AdminLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { OrdersPage } from "./pages/OrdersPage";
+import { BroadcastPage } from "./pages/BroadcastPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TrackingHistoryPage } from "./pages/TrackingHistoryPage";
 import { UsersPage } from "./pages/UsersPage";
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/tracking-history" element={<TrackingHistoryPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/broadcasts" element={<BroadcastPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

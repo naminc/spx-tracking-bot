@@ -20,6 +20,7 @@ const trackingHistoryOrderSelect = {
   trackingNumber: true,
   telegramChatId: true,
   userId: true,
+  note: true,
   user: { select: userSelect },
 } satisfies Prisma.TrackingOrderSelect;
 
@@ -47,6 +48,7 @@ type FindOrdersFilters = {
 type CreateOrderInput = {
   trackingNumber: string;
   telegramChatId: string;
+  note?: string | null;
   latestRecord: NormalizedSpxRecord;
   isCompleted: boolean;
   finalStatus: FinalStatus;
@@ -181,6 +183,7 @@ export class TrackingRepository {
           trackingNumber: input.trackingNumber,
           telegramChatId: input.telegramChatId,
           userId,
+          note: input.note ?? null,
           currentStatus: input.latestRecord.status,
           currentStatusCode: input.latestRecord.trackingCode,
           currentLocation: input.latestRecord.location,
@@ -199,6 +202,14 @@ export class TrackingRepository {
       });
 
       return order;
+    });
+  }
+
+  updateOrderNote(orderId: number, note: string | null): Promise<TrackingOrderEntity> {
+    return prisma.trackingOrder.update({
+      where: { id: orderId },
+      data: { note },
+      include: trackingOrderInclude,
     });
   }
 
@@ -255,7 +266,7 @@ export class TrackingRepository {
     telegramChatId?: string;
     userId?: number;
     telegramUserId?: string;
-    limit: number;
+    limit?: number;
   }): Promise<TrackingHistoryWithOrderEntity[]> {
     return prisma.trackingHistory.findMany({
       where:

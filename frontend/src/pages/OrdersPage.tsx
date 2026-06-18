@@ -19,6 +19,7 @@ import { Modal } from "../components/ui/Modal";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
 
 const trackingNumberPattern = /^SPXVN[A-Z0-9]{6,40}$/i;
+const maxOrderNoteLength = 512;
 
 function optionalText(value: string | null | undefined) {
   return value && value.trim() ? value : "-";
@@ -95,6 +96,7 @@ export function OrdersPage() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [selectedAddUserId, setSelectedAddUserId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
+  const [note, setNote] = useState("");
   const [historyOrder, setHistoryOrder] = useState<TrackingOrder | null>(null);
   const { data = [], isLoading, error, refetch } = useTrackingOrders({
     includeCompleted,
@@ -120,6 +122,12 @@ export function OrdersPage() {
       key: "trackingNumber",
       header: "Tracking Number",
       render: (order: TrackingOrder) => <span className="font-mono text-xs">{order.trackingNumber}</span>,
+    },
+    {
+      key: "note",
+      header: "Note",
+      render: (order: TrackingOrder) => optionalText(order.note),
+      className: "whitespace-normal min-w-48",
     },
     {
       key: "chat",
@@ -158,6 +166,16 @@ export function OrdersPage() {
       key: "lastEventTime",
       header: "Last Event",
       render: (order: TrackingOrder) => formatDate(order.lastEventTime),
+    },
+    {
+      key: "createdAt",
+      header: "Created",
+      render: (order: TrackingOrder) => formatDate(order.createdAt),
+    },
+    {
+      key: "updatedAt",
+      header: "Updated",
+      render: (order: TrackingOrder) => formatDate(order.updatedAt),
     },
     {
       key: "actions",
@@ -205,11 +223,20 @@ export function OrdersPage() {
       return;
     }
 
+    const normalizedNote = note.trim();
+
+    if (normalizedNote.length > maxOrderNoteLength) {
+      toast.error(`Note must be at most ${maxOrderNoteLength} characters.`);
+      return;
+    }
+
     const created = await createOrder.mutateAsync({
       trackingNumber,
       telegramChatId: normalizedTelegramChatId,
+      note: normalizedNote || undefined,
     });
     setTrackingNumber("");
+    setNote("");
     setTelegramChatId(created.order.telegramChatId);
   };
 
@@ -287,7 +314,7 @@ export function OrdersPage() {
 
       <form
         onSubmit={handleCreate}
-        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1.2fr_220px_auto]"
+        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1.1fr_220px_1fr_auto]"
       >
         <Input
           label="Tracking Number"
@@ -308,6 +335,13 @@ export function OrdersPage() {
           placeholder="6142403832"
           value={telegramChatId}
           onChange={(event) => setTelegramChatId(event.target.value)}
+        />
+        <Input
+          label="Note"
+          placeholder="Hàng của khách A"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          maxLength={maxOrderNoteLength}
         />
         <div className="flex items-end">
           <Button type="submit" loading={createOrder.isPending} className="w-full">

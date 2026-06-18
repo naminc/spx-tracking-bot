@@ -69,7 +69,7 @@ export function SettingsPage() {
           <span>
             <span className="block text-sm font-medium text-gray-900">Maintenance Mode</span>
             <span className="mt-1 block text-sm text-gray-500">
-              Khi bật, bot sẽ tạm ngưng nhận đơn mới từ lệnh /add.
+              When enabled, the bot will temporarily stop accepting new orders from the /add command.
             </span>
           </span>
         </label>

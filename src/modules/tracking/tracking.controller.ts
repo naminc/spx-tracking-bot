@@ -31,7 +31,7 @@ export class TrackingController {
       telegramChatId?: string;
       userId?: number;
       telegramUserId?: string;
-      limit: number;
+      limit?: number;
     };
 
     const histories = await this.service.listHistories({
@@ -51,12 +51,13 @@ export class TrackingController {
   };
 
   createOrder = async (request: Request, response: Response): Promise<void> => {
-    const { trackingNumber, telegramChatId } = request.body as {
+    const { trackingNumber, telegramChatId, note } = request.body as {
       trackingNumber: string;
       telegramChatId: string;
+      note?: string | null;
     };
 
-    const result = await this.service.addOrder(trackingNumber, telegramChatId);
+    const result = await this.service.addOrder(trackingNumber, telegramChatId, note);
     response
       .status(result.alreadyExists ? 200 : 201)
       .json(
@@ -67,6 +68,7 @@ export class TrackingController {
           {
             order: result.order,
             alreadyExists: result.alreadyExists,
+            noteUpdated: result.noteUpdated,
           },
         ),
       );

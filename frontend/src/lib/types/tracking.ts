@@ -14,6 +14,7 @@ export type TrackingOrder = {
   telegramChatId: string;
   userId: number | null;
   user: TrackingUser | null;
+  note: string | null;
   currentStatus: string;
   currentStatusCode: string;
   currentLocation: string | null;
@@ -47,6 +48,7 @@ export type TrackingHistory = {
     trackingNumber: string;
     telegramChatId: string;
     userId: number | null;
+    note: string | null;
     user: TrackingUser | null;
   };
 };

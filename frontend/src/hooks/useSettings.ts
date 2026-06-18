@@ -1,50 +1,25 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../lib/api/client";
-
-export interface ShopSettings {
-  id: number;
-  shopName: string;
-  shopTitle: string;
-  shopChannelUrl: string | null;
-  shopWelcomeText: string;
-  shopSupportText: string;
-  shopStartCta: string;
-  supportContact: string;
-  adminContact: string | null;
-  bankName: string;
-  bankBin: string;
-  bankAccountNumber: string;
-  bankAccountName: string;
-  vietqrTemplate: string;
-  depositMinAmount: number;
-  depositMaxAmount: number;
-  depositDescription: string;
-  depositPrefix: string;
-  depositExpireMinutes: number;
-  broadcastBatchSize: number;
-  broadcastDelayMs: number;
-  maintenanceEnabled: boolean;
-  maintenanceMessage: string;
-  updatedAt: string;
-}
+import type { AppSetting } from "../lib/types/setting";
 
 export function useSettings() {
-  return useQuery<ShopSettings>({
+  return useQuery<AppSetting>({
     queryKey: ["settings"],
-    queryFn: () => api.get<ShopSettings>("/settings")
+    queryFn: () => api.get("/admin/settings"),
   });
 }
 
 export function useUpdateSettings() {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: (data: Partial<ShopSettings>) =>
-      api.patch<ShopSettings>("/settings", data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["settings"] });
-      toast.success("Settings saved");
+    mutationFn: (input: { adminContact: string; maintenanceEnabled: boolean }) =>
+      api.put<AppSetting>("/admin/settings", input),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(["settings"], settings);
+      toast.success("Đã cập nhật cấu hình");
     },
-    onError: (e: Error) => toast.error(e.message)
+    onError: (error: Error) => toast.error(error.message),
   });
 }

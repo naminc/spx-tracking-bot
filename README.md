@@ -27,6 +27,9 @@ DATABASE_URL=mysql://root:password@localhost:3306/spx_tracking
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_ADMIN_USERNAME=@naminc
 TELEGRAM_POLLING_TIMEOUT_SECONDS=25
+ADMIN_TELEGRAM_ADMINS=6142403832:naminc
+ADMIN_JWT_SECRET=change-this-admin-jwt-secret
+ADMIN_JWT_EXPIRES_IN_SECONDS=604800
 ```
 
 ## Response Format
@@ -60,8 +63,11 @@ Response:
 
 ### Tracking Orders
 
+These endpoints require the admin JWT cookie from the admin login flow.
+
 ```txt
 GET    /api/orders
+GET    /api/orders/histories
 GET    /api/orders/:trackingNumber
 POST   /api/orders
 DELETE /api/orders/:trackingNumber
@@ -82,6 +88,36 @@ Delete request can include the chat id as query string:
 ```txt
 DELETE /api/orders/SPXVN063015366786?telegramChatId=api
 ```
+
+### Telegram Users
+
+The bot stores only Telegram ID, name, and username when users send messages or press inline menu buttons.
+
+```txt
+GET /api/admin/users
+```
+
+This endpoint requires the admin JWT cookie.
+
+### Admin Auth
+
+```txt
+POST /api/admin/auth/request-otp
+POST /api/admin/auth/verify-otp
+GET  /api/admin/auth/me
+POST /api/admin/auth/logout
+```
+
+Admins are configured with `ADMIN_TELEGRAM_ADMINS` using `telegramId:username` entries. After OTP verification, the API sets the httpOnly JWT cookie `admin_token`.
+
+### Admin Settings
+
+```txt
+GET /api/admin/settings
+PUT /api/admin/settings
+```
+
+Settings include `adminContact` and `maintenanceEnabled`. On first use, `adminContact` is initialized from `TELEGRAM_ADMIN_USERNAME`.
 
 ### Telegram
 

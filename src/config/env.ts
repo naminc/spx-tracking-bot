@@ -10,6 +10,9 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
   TELEGRAM_ADMIN_USERNAME: z.string().trim().min(1).default('@naminc'),
   TELEGRAM_POLLING_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(25),
+  ADMIN_TELEGRAM_ADMINS: z.string().optional().default(''),
+  ADMIN_JWT_SECRET: z.string().min(16).default('development-admin-jwt-secret-change-me'),
+  ADMIN_JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().positive().default(604800),
   SPX_API_URL: z
     .string()
     .url()

@@ -18,6 +18,8 @@ model TrackingOrder {
   id                Int               @id @default(autoincrement())
   trackingNumber    String            @db.VarChar(64)
   telegramChatId    String            @db.VarChar(64)
+  userId            Int?
+  user              User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   currentStatus     String            @db.VarChar(512)
   currentStatusCode String            @db.VarChar(128)
   currentLocation   String?           @db.VarChar(255)
@@ -34,6 +36,7 @@ model TrackingOrder {
   @@unique([trackingNumber, telegramChatId])
   @@index([isCompleted])
   @@index([trackingNumber])
+  @@index([userId])
 }
 
 model TrackingHistory {
@@ -56,4 +59,24 @@ model TrackingHistory {
 
   @@index([orderId])
   @@index([eventTime])
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  telegramUserId String          @unique @db.VarChar(64)
+  username       String?         @db.VarChar(64)
+  firstName      String?         @db.VarChar(128)
+  lastName       String?         @db.VarChar(128)
+  createdAt      DateTime        @default(now())
+  orders         TrackingOrder[]
+
+  @@index([username])
+}
+
+model AppSetting {
+  id                 Int      @id
+  adminContact       String   @db.VarChar(128)
+  maintenanceEnabled Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }

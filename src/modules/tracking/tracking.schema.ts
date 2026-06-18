@@ -16,11 +16,22 @@ export const trackingNumberParamsSchema = z.object({
 });
 
 export const listOrdersQuerySchema = z.object({
+  trackingNumber: trackingNumberSchema.optional(),
   telegramChatId: z.string().trim().min(1).max(64).optional(),
+  userId: z.coerce.number().int().positive().optional(),
+  telegramUserId: z.string().trim().min(1).max(64).optional(),
   includeCompleted: z
     .enum(['true', 'false'])
     .optional()
     .transform((value) => value === 'true'),
+});
+
+export const listHistoriesQuerySchema = z.object({
+  trackingNumber: trackingNumberSchema.optional(),
+  telegramChatId: z.string().trim().min(1).max(64).optional(),
+  userId: z.coerce.number().int().positive().optional(),
+  telegramUserId: z.string().trim().min(1).max(64).optional(),
+  limit: z.coerce.number().int().positive().max(500).optional().default(100),
 });
 
 export const removeOrderQuerySchema = z.object({

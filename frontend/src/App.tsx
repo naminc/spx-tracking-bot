@@ -3,15 +3,10 @@ import { useAuth } from "./hooks/useAuth";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { ProductsPage } from "./pages/ProductsPage";
-import { StocksPage } from "./pages/StocksPage";
 import { OrdersPage } from "./pages/OrdersPage";
-import { DepositsPage } from "./pages/DepositsPage";
-import { UsersPage } from "./pages/UsersPage";
-import { LogsPage } from "./pages/LogsPage";
-import { BroadcastPage } from "./pages/BroadcastPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { UserDetailPage } from "./pages/UserDetailPage";
+import { TrackingHistoryPage } from "./pages/TrackingHistoryPage";
+import { UsersPage } from "./pages/UsersPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isAuthError } = useAuth();
@@ -34,14 +29,9 @@ export default function App() {
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/stocks" element={<StocksPage />} />
         <Route path="/orders" element={<OrdersPage />} />
-        <Route path="/deposits" element={<DepositsPage />} />
+        <Route path="/tracking-history" element={<TrackingHistoryPage />} />
         <Route path="/users" element={<UsersPage />} />
-        <Route path="/users/:id" element={<UserDetailPage />} />
-        <Route path="/logs" element={<LogsPage />} />
-        <Route path="/broadcast" element={<BroadcastPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

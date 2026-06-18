@@ -8,10 +8,14 @@ import {
   TrackingService,
   trackingService,
 } from '../tracking/tracking.service';
+import { SettingService, settingService } from '../admin/setting/setting.service';
+import { UserRepository, userRepository } from '../admin/user/user.repository';
 import { telegramMessageBuilder } from './telegram-message.builder';
 import type {
+  TelegramCallbackQuery,
   TelegramGetUpdatesResponse,
   TelegramInlineKeyboardMarkup,
+  TelegramMessage,
   TelegramUpdate,
 } from './telegram.types';
 
@@ -35,7 +39,11 @@ export class TelegramService {
     inline_keyboard: [[{ text: '⬅️ Quay lại menu', callback_data: 'start:menu' }]],
   };
 
-  constructor(private readonly service: TrackingService = trackingService) {}
+  constructor(
+    private readonly service: TrackingService = trackingService,
+    private readonly users: UserRepository = userRepository,
+    private readonly settings: SettingService = settingService,
+  ) {}
 
   async handleUpdate(update: TelegramUpdate): Promise<void> {
     if (update.callback_query) {
@@ -45,7 +53,13 @@ export class TelegramService {
 
     const message = update.message;
 
-    if (!message?.text) {
+    if (!message) {
+      return;
+    }
+
+    await this.recordTelegramUserFromMessage(message);
+
+    if (!message.text) {
       return;
     }
 
@@ -69,7 +83,8 @@ export class TelegramService {
     }
 
     if (command === '/contact') {
-      await this.sendMessage(chatId, telegramMessageBuilder.contact(env.TELEGRAM_ADMIN_USERNAME));
+      const adminContact = await this.settings.getAdminContact();
+      await this.sendMessage(chatId, telegramMessageBuilder.contact(adminContact));
       return;
     }
 
@@ -177,7 +192,18 @@ export class TelegramService {
           await this.handleUpdate(update);
         }
       } catch (error) {
-        logger.error(this.toSafeTelegramErrorLog(error), 'Telegram polling failed');
+        const safeErrorLog = this.toSafeTelegramErrorLog(error);
+
+        if (this.isTelegramPollingConflict(error)) {
+          logger.error(
+            safeErrorLog,
+            'Telegram polling stopped because another getUpdates instance is already running',
+          );
+          this.isPolling = false;
+          return;
+        }
+
+        logger.error(safeErrorLog, 'Telegram polling failed');
         await this.sleep(3000);
       }
     }
@@ -185,17 +211,27 @@ export class TelegramService {
 
   private toSafeTelegramErrorLog(error: unknown): Record<string, unknown> {
     if (error instanceof AxiosError) {
+      const responseData = error.response?.data as
+        | { description?: string; error_code?: number }
+        | undefined;
+
       return {
         err: {
           name: error.name,
           message: error.message,
           code: error.code,
           status: error.response?.status,
+          telegramErrorCode: responseData?.error_code,
+          telegramDescription: responseData?.description,
         },
       };
     }
 
     return { err: error };
+  }
+
+  private isTelegramPollingConflict(error: unknown): boolean {
+    return error instanceof AxiosError && error.response?.status === 409;
   }
 
   private sleep(milliseconds: number): Promise<void> {
@@ -211,10 +247,11 @@ export class TelegramService {
   }
 
   private async handleCallbackQuery(
-    callbackQuery: NonNullable<TelegramUpdate['callback_query']>,
+    callbackQuery: TelegramCallbackQuery,
   ): Promise<void> {
     const chatId = callbackQuery.message?.chat.id ? String(callbackQuery.message.chat.id) : undefined;
 
+    await this.recordTelegramUserFromCallback(callbackQuery);
     await this.answerCallbackQuery(callbackQuery.id);
 
     if (!chatId || !callbackQuery.data) {
@@ -261,7 +298,44 @@ export class TelegramService {
     }
   }
 
+  private async recordTelegramUserFromMessage(message: TelegramMessage): Promise<void> {
+    const user = message.from;
+    const telegramId = user?.id ?? message.chat.id;
+
+    try {
+      await this.users.upsertUser({
+        telegramUserId: String(telegramId),
+        username: user?.username ?? message.chat.username ?? null,
+        firstName: user?.first_name ?? message.chat.first_name ?? null,
+        lastName: user?.last_name ?? message.chat.last_name ?? null,
+      });
+    } catch (error) {
+      logger.warn({ err: error, telegramId: String(telegramId) }, 'Failed to record Telegram user');
+    }
+  }
+
+  private async recordTelegramUserFromCallback(callbackQuery: TelegramCallbackQuery): Promise<void> {
+    const chat = callbackQuery.message?.chat;
+    const user = callbackQuery.from;
+
+    try {
+      await this.users.upsertUser({
+        telegramUserId: String(user.id),
+        username: user.username ?? chat?.username ?? null,
+        firstName: user.first_name ?? chat?.first_name ?? null,
+        lastName: user.last_name ?? chat?.last_name ?? null,
+      });
+    } catch (error) {
+      logger.warn({ err: error, telegramId: String(user.id) }, 'Failed to record Telegram user');
+    }
+  }
+
   private async handleAdd(chatId: string, text: string): Promise<void> {
+    if (await this.settings.isMaintenanceEnabled()) {
+      await this.sendMessage(chatId, telegramMessageBuilder.maintenance());
+      return;
+    }
+
     const [, rawTrackingNumber] = text.split(/\s+/);
 
     if (!rawTrackingNumber) {
@@ -332,7 +406,10 @@ export class TelegramService {
   }
 
   private async sendOrderList(chatId: string, options: SendMessageOptions = {}): Promise<void> {
-    const orders = await this.service.listOrders(chatId, false);
+    const orders = await this.service.listOrders({
+      telegramChatId: chatId,
+      includeCompleted: false,
+    });
 
     await this.sendMessage(
       chatId,

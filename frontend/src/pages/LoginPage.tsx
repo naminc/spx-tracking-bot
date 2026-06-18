@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth, useRequestOtp, useVerifyOtp } from "../hooks/useAuth";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -8,6 +8,7 @@ export function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const requestOtp = useRequestOtp();
   const verifyOtp = useVerifyOtp();
+  const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [resolvedTelegramId, setResolvedTelegramId] = useState("");
   const [otp, setOtp] = useState("");
@@ -37,6 +38,7 @@ export function LoginPage() {
     e.preventDefault();
     try {
       await verifyOtp.mutateAsync({ telegramId: resolvedTelegramId, otp });
+      navigate("/dashboard", { replace: true });
     } catch {
       /* error handled by toast */
     }

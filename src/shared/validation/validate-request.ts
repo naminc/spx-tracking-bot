@@ -9,18 +9,27 @@ type RequestSchemas = {
   query?: ZodSchema;
 };
 
+const setRequestValue = <T>(request: Request, key: 'body' | 'params' | 'query', value: T): void => {
+  Object.defineProperty(request, key, {
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+};
+
 export const validateRequest =
   (schemas: RequestSchemas) => (request: Request, _response: Response, next: NextFunction): void => {
     if (schemas.body) {
-      request.body = schemas.body.parse(request.body);
+      setRequestValue(request, 'body', schemas.body.parse(request.body));
     }
 
     if (schemas.params) {
-      request.params = schemas.params.parse(request.params) as ParamsDictionary;
+      setRequestValue(request, 'params', schemas.params.parse(request.params) as ParamsDictionary);
     }
 
     if (schemas.query) {
-      request.query = schemas.query.parse(request.query) as ParsedQs;
+      setRequestValue(request, 'query', schemas.query.parse(request.query) as ParsedQs);
     }
 
     next();

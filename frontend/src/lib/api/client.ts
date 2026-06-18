@@ -1,7 +1,15 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/admin";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
-type ApiResponse<T> = { data: T };
-type ApiError = { error?: { message?: string; code?: string; reason?: string } };
+type ApiResponse<T> = {
+  success: true;
+  message: string;
+  data?: T;
+};
+type ApiError = {
+  success: false;
+  message?: string;
+  errors?: unknown;
+};
 
 export class ApiClientError extends Error {
   code: string;
@@ -30,7 +38,7 @@ function getNetworkErrorMessage(): string {
   const localhostHosts = ["localhost", "127.0.0.1", "::1"];
 
   if (localhostHosts.includes(apiHost) && !localhostHosts.includes(pageHost)) {
-    return "Khong ket noi duoc API. Frontend dang tro API ve localhost; tren dien thoai localhost la chinh dien thoai. Hay dung /api/admin qua Vite proxy, IP LAN cua may chay backend hoac domain HTTPS.";
+    return "Khong ket noi duoc API. Frontend dang tro API ve localhost; tren dien thoai localhost la chinh dien thoai. Hay dung /api qua Vite proxy, IP LAN cua may chay backend hoac domain HTTPS.";
   }
 
   return "Khong ket noi duoc API. Kiem tra backend, VITE_API_BASE_URL, CORS va HTTPS.";
@@ -64,15 +72,22 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const err = json as ApiError;
+    const reason =
+      typeof err.errors === "string"
+        ? err.errors
+        : err.errors
+          ? JSON.stringify(err.errors)
+          : undefined;
+
     throw new ApiClientError(
-      err.error?.message || "Unknown error",
-      err.error?.code || "UNKNOWN",
+      err.message || "Unknown error",
+      "API_ERROR",
       res.status,
-      err.error?.reason
+      reason
     );
   }
 
-  return (json as ApiResponse<T>).data;
+  return (json as ApiResponse<T>).data as T;
 }
 
 export const api = {
@@ -80,6 +95,11 @@ export const api = {
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "PUT",
       body: body ? JSON.stringify(body) : undefined,
     }),
   patch: <T>(path: string, body?: unknown) =>

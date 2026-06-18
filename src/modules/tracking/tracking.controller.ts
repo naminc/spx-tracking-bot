@@ -6,13 +6,42 @@ export class TrackingController {
   constructor(private readonly service: TrackingService = trackingService) {}
 
   listOrders = async (request: Request, response: Response): Promise<void> => {
-    const { telegramChatId, includeCompleted } = request.query as unknown as {
+    const { trackingNumber, telegramChatId, userId, telegramUserId, includeCompleted } =
+      request.query as unknown as {
+      trackingNumber?: string;
       telegramChatId?: string;
+      userId?: number;
+      telegramUserId?: string;
       includeCompleted?: boolean;
     };
 
-    const orders = await this.service.listOrders(telegramChatId, includeCompleted);
+    const orders = await this.service.listOrders({
+      trackingNumber,
+      telegramChatId,
+      userId,
+      telegramUserId,
+      includeCompleted,
+    });
     response.json(successResponse('Lấy danh sách đơn hàng thành công', orders));
+  };
+
+  listHistories = async (request: Request, response: Response): Promise<void> => {
+    const { trackingNumber, telegramChatId, userId, telegramUserId, limit } = request.query as unknown as {
+      trackingNumber?: string;
+      telegramChatId?: string;
+      userId?: number;
+      telegramUserId?: string;
+      limit: number;
+    };
+
+    const histories = await this.service.listHistories({
+      trackingNumber,
+      telegramChatId,
+      userId,
+      telegramUserId,
+      limit,
+    });
+    response.json(successResponse('Lấy lịch sử tracking thành công', histories));
   };
 
   getOrder = async (request: Request, response: Response): Promise<void> => {
@@ -32,8 +61,13 @@ export class TrackingController {
       .status(result.alreadyExists ? 200 : 201)
       .json(
         successResponse(
-          result.alreadyExists ? 'Đơn hàng đã tồn tại trong danh sách theo dõi' : 'Thêm đơn hàng thành công',
-          result.order,
+          result.alreadyExists
+            ? 'Đơn hàng đã tồn tại trong danh sách theo dõi'
+            : 'Thêm đơn hàng thành công',
+          {
+            order: result.order,
+            alreadyExists: result.alreadyExists,
+          },
         ),
       );
   };

@@ -28,6 +28,22 @@ export type TrackingNotification = {
   finalStatus: FinalStatus;
 };
 
+type ListOrdersFilters = {
+  trackingNumber?: string;
+  telegramChatId?: string;
+  userId?: number;
+  telegramUserId?: string;
+  includeCompleted?: boolean;
+};
+
+type ListHistoriesFilters = {
+  trackingNumber?: string;
+  telegramChatId?: string;
+  userId?: number;
+  telegramUserId?: string;
+  limit: number;
+};
+
 const normalize = (value: string): string => value.trim().toLowerCase();
 
 const delay = (milliseconds: number): Promise<void> =>
@@ -41,8 +57,8 @@ export class TrackingService {
     private readonly spx: SpxService = spxService,
   ) {}
 
-  listOrders(telegramChatId?: string, includeCompleted = false): Promise<TrackingOrderEntity[]> {
-    return this.repository.findOrders(telegramChatId, includeCompleted);
+  listOrders(filters: ListOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+    return this.repository.findOrders(filters);
   }
 
   async getOrder(trackingNumber: string): Promise<TrackingOrderEntity> {
@@ -62,6 +78,10 @@ export class TrackingService {
 
   getHistories(trackingNumber: string): Promise<TrackingHistoryEntity[]> {
     return this.repository.findHistoriesByTrackingNumber(trackingNumber);
+  }
+
+  listHistories(filters: ListHistoriesFilters) {
+    return this.repository.listHistories(filters);
   }
 
   async addOrder(trackingNumber: string, telegramChatId = 'api'): Promise<AddTrackingResult> {

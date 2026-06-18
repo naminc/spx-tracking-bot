@@ -1,14 +1,48 @@
+import type { Prisma } from '@prisma/client';
 import type { InputJsonObject, InputJsonValue } from '@prisma/client/runtime/library';
 import { prisma } from '../../shared/prisma/client';
 import type { NormalizedSpxRecord } from '../spx/spx.service';
 import type { FinalStatus } from './final-status';
 
-export type TrackingOrderEntity = NonNullable<
-  Awaited<ReturnType<typeof prisma.trackingOrder.findFirst>>
->;
+const userSelect = {
+  id: true,
+  telegramUserId: true,
+  username: true,
+  firstName: true,
+  lastName: true,
+} satisfies Prisma.UserSelect;
+
+const trackingOrderInclude = {
+  user: { select: userSelect },
+} satisfies Prisma.TrackingOrderInclude;
+
+const trackingHistoryOrderSelect = {
+  trackingNumber: true,
+  telegramChatId: true,
+  userId: true,
+  user: { select: userSelect },
+} satisfies Prisma.TrackingOrderSelect;
+
+export type TrackingUserEntity = Prisma.UserGetPayload<{
+  select: typeof userSelect;
+}>;
+export type TrackingOrderEntity = Prisma.TrackingOrderGetPayload<{
+  include: typeof trackingOrderInclude;
+}>;
 export type TrackingHistoryEntity = Awaited<
   ReturnType<typeof prisma.trackingHistory.findMany>
 >[number];
+export type TrackingHistoryWithOrderEntity = Prisma.TrackingHistoryGetPayload<{
+  include: { order: { select: typeof trackingHistoryOrderSelect } };
+}>;
+
+type FindOrdersFilters = {
+  trackingNumber?: string;
+  telegramChatId?: string;
+  userId?: number;
+  telegramUserId?: string;
+  includeCompleted?: boolean;
+};
 
 type CreateOrderInput = {
   trackingNumber: string;
@@ -70,12 +104,22 @@ const toJsonObject = (value: Record<string, unknown>): InputJsonObject =>
   }, {});
 
 export class TrackingRepository {
-  findOrders(telegramChatId?: string, includeCompleted = false): Promise<TrackingOrderEntity[]> {
+  findOrders(filters: FindOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+    const where: Prisma.TrackingOrderWhereInput = {
+      trackingNumber: filters.trackingNumber,
+      telegramChatId: filters.telegramChatId,
+      ...(filters.includeCompleted ? {} : { isCompleted: false }),
+    };
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    } else if (filters.telegramUserId) {
+      where.user = { telegramUserId: filters.telegramUserId };
+    }
+
     return prisma.trackingOrder.findMany({
-      where: {
-        telegramChatId,
-        ...(includeCompleted ? {} : { isCompleted: false }),
-      },
+      where,
+      include: trackingOrderInclude,
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -83,6 +127,7 @@ export class TrackingRepository {
   findActiveOrders(): Promise<TrackingOrderEntity[]> {
     return prisma.trackingOrder.findMany({
       where: { isCompleted: false },
+      include: trackingOrderInclude,
       orderBy: { updatedAt: 'asc' },
     });
   }
@@ -90,6 +135,7 @@ export class TrackingRepository {
   findByTrackingNumber(trackingNumber: string): Promise<TrackingOrderEntity | null> {
     return prisma.trackingOrder.findFirst({
       where: { trackingNumber },
+      include: trackingOrderInclude,
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -105,15 +151,36 @@ export class TrackingRepository {
           telegramChatId,
         },
       },
+      include: trackingOrderInclude,
     });
   }
 
   async createOrder(input: CreateOrderInput): Promise<TrackingOrderEntity> {
     return prisma.$transaction(async (transaction) => {
+      const telegramUserId = input.telegramChatId === 'api' ? undefined : input.telegramChatId;
+      let userId: number | null = null;
+
+      if (telegramUserId) {
+        const existingUser = await transaction.user.findUnique({
+          where: { telegramUserId },
+          select: { id: true },
+        });
+
+        const user =
+          existingUser ??
+          (await transaction.user.create({
+            data: { telegramUserId },
+            select: { id: true },
+          }));
+
+        userId = user.id;
+      }
+
       const order = await transaction.trackingOrder.create({
         data: {
           trackingNumber: input.trackingNumber,
           telegramChatId: input.telegramChatId,
+          userId,
           currentStatus: input.latestRecord.status,
           currentStatusCode: input.latestRecord.trackingCode,
           currentLocation: input.latestRecord.location,
@@ -124,6 +191,7 @@ export class TrackingRepository {
           isCompleted: input.isCompleted,
           finalStatus: input.finalStatus,
         },
+        include: trackingOrderInclude,
       });
 
       await transaction.trackingHistory.create({
@@ -149,6 +217,7 @@ export class TrackingRepository {
           isCompleted: input.isCompleted,
           finalStatus: input.finalStatus,
         },
+        include: trackingOrderInclude,
       });
 
       await transaction.trackingHistory.create({
@@ -169,7 +238,7 @@ export class TrackingRepository {
       return null;
     }
 
-    return prisma.trackingOrder.delete({ where: { id: order.id } });
+    return prisma.trackingOrder.delete({ where: { id: order.id }, include: trackingOrderInclude });
   }
 
   findHistoriesByTrackingNumber(trackingNumber: string): Promise<TrackingHistoryEntity[]> {
@@ -178,6 +247,37 @@ export class TrackingRepository {
         order: { trackingNumber },
       },
       orderBy: { eventTime: 'desc' },
+    });
+  }
+
+  listHistories(filters: {
+    trackingNumber?: string;
+    telegramChatId?: string;
+    userId?: number;
+    telegramUserId?: string;
+    limit: number;
+  }): Promise<TrackingHistoryWithOrderEntity[]> {
+    return prisma.trackingHistory.findMany({
+      where:
+        filters.trackingNumber || filters.telegramChatId || filters.userId || filters.telegramUserId
+          ? {
+              order: {
+                trackingNumber: filters.trackingNumber,
+                telegramChatId: filters.telegramChatId,
+                userId: filters.userId,
+                user: !filters.userId && filters.telegramUserId
+                  ? { telegramUserId: filters.telegramUserId }
+                  : undefined,
+              },
+            }
+          : undefined,
+      include: {
+        order: {
+          select: trackingHistoryOrderSelect,
+        },
+      },
+      orderBy: { eventTime: 'desc' },
+      take: filters.limit,
     });
   }
 

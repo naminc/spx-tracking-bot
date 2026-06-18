@@ -91,6 +91,13 @@ ${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786</code>`;
 👤 <b>Admin Telegram:</b> ${escapeHtml(adminUsername)}`;
   },
 
+  maintenance(): string {
+    return `<b>⚠️ Bot đang bảo trì</b>
+━━━━━━━━━━━━━━━━
+
+Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sau hoặc dùng <b>/contact</b> để liên hệ admin.`;
+  },
+
   addInstruction(): string {
     return `<b>➕ Thêm đơn SPX</b>
 ━━━━━━━━━━━━━━━━

@@ -5,6 +5,7 @@ import { validateRequest } from '../../shared/validation/validate-request';
 import { trackingController } from './tracking.controller';
 import {
   createTrackingOrderSchema,
+  listHistoriesQuerySchema,
   listOrdersQuerySchema,
   removeOrderQuerySchema,
   trackingNumberParamsSchema,
@@ -16,6 +17,12 @@ trackingRouter.get(
   '/',
   validateRequest({ query: listOrdersQuerySchema }),
   asyncHandler(trackingController.listOrders),
+);
+
+trackingRouter.get(
+  '/histories',
+  validateRequest({ query: listHistoriesQuerySchema }),
+  asyncHandler(trackingController.listHistories),
 );
 
 trackingRouter.get(

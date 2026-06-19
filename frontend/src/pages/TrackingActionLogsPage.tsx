@@ -6,7 +6,6 @@ import { Button } from "../components/ui/Button";
 import { ErrorState } from "../components/ui/ErrorState";
 import { Input } from "../components/ui/Input";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
-import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useTrackingActionLogs } from "../hooks/useTrackingActionLogs";
 import { useUsers } from "../hooks/useUsers";
 import { formatDate } from "../lib/format";
@@ -56,43 +55,25 @@ export function TrackingActionLogsPage() {
   const [trackingInput, setTrackingInput] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [userInput, setUserInput] = useState("");
-  const [filters, setFilters] = useState({
-    action: "" as TrackingOrderActionType | "",
-    source: "" as TrackingOrderActionSource | "",
-    trackingNumber: "",
-    telegramChatId: "",
-    userId: "",
-  });
-  const debouncedTrackingInput = useDebouncedValue(trackingInput);
-  const debouncedChatInput = useDebouncedValue(chatInput);
-  const normalizedTrackingNumber = debouncedTrackingInput.trim().toUpperCase();
+  const normalizedTrackingNumber = trackingInput.trim().toUpperCase();
+  const normalizedChatId = chatInput.trim();
 
-  const logsQuery = useTrackingActionLogs(filters);
+  const logsQuery = useTrackingActionLogs({
+    action: actionInput,
+    source: sourceInput,
+    trackingNumber: normalizedTrackingNumber || undefined,
+    telegramChatId: normalizedChatId || undefined,
+    userId: userInput || undefined,
+  });
   const usersQuery = useUsers();
   const logs = logsQuery.data ?? [];
   const tableResetKey = [
-    filters.action,
-    filters.source,
-    filters.trackingNumber,
-    filters.telegramChatId,
-    filters.userId,
-  ].join("|");
-
-  useEffect(() => {
-    setFilters({
-      action: actionInput,
-      source: sourceInput,
-      trackingNumber: normalizedTrackingNumber,
-      telegramChatId: debouncedChatInput.trim(),
-      userId: userInput,
-    });
-  }, [
     actionInput,
-    debouncedChatInput,
-    normalizedTrackingNumber,
     sourceInput,
+    normalizedTrackingNumber,
+    normalizedChatId,
     userInput,
-  ]);
+  ].join("|");
 
   const columns = [
     {
@@ -154,13 +135,6 @@ export function TrackingActionLogsPage() {
     setTrackingInput("");
     setChatInput("");
     setUserInput("");
-    setFilters({
-      action: "",
-      source: "",
-      trackingNumber: "",
-      telegramChatId: "",
-      userId: "",
-    });
   };
 
   const tableError = logsQuery.error || usersQuery.error;

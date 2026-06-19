@@ -8,7 +8,6 @@ import {
   useTrackingHistories,
   useTrackingOrders,
 } from "../hooks/useTracking";
-import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useUsers } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
 import { Badge } from "../components/ui/Badge";
@@ -89,40 +88,24 @@ export function OrdersPage() {
   const [userFilter, setUserFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("");
   const [trackingFilterInput, setTrackingFilterInput] = useState("");
-  const [filters, setFilters] = useState({
-    trackingNumber: "",
-    telegramChatId: "",
-    userId: "",
-    finalStatus: "" as OrderStatusFilter,
-  });
   const [trackingNumber, setTrackingNumber] = useState("");
   const [selectedAddUserId, setSelectedAddUserId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [note, setNote] = useState("");
   const [historyOrder, setHistoryOrder] = useState<TrackingOrder | null>(null);
-  const debouncedTrackingFilter = useDebouncedValue(trackingFilterInput);
-  const debouncedChatFilter = useDebouncedValue(chatFilter);
-  const normalizedTrackingFilter = debouncedTrackingFilter.trim().toUpperCase();
+  const normalizedTrackingFilter = trackingFilterInput.trim().toUpperCase();
+  const normalizedChatFilter = chatFilter.trim();
   const { data = [], isLoading, isFetching, error, refetch } = useTrackingOrders({
     includeCompleted: true,
-    trackingNumber: filters.trackingNumber || undefined,
-    telegramChatId: filters.telegramChatId || undefined,
-    userId: filters.userId || undefined,
-    finalStatus: filters.finalStatus || undefined,
+    trackingNumber: normalizedTrackingFilter || undefined,
+    telegramChatId: normalizedChatFilter || undefined,
+    userId: userFilter || undefined,
+    finalStatus: statusFilter || undefined,
   });
   const usersQuery = useUsers();
   const createOrder = useCreateTrackingOrder();
   const deleteOrder = useDeleteTrackingOrder();
-  const tableResetKey = `${filters.trackingNumber}|${filters.telegramChatId}|${filters.userId}|${filters.finalStatus}`;
-
-  useEffect(() => {
-    setFilters({
-      trackingNumber: normalizedTrackingFilter,
-      telegramChatId: debouncedChatFilter.trim(),
-      userId: userFilter,
-      finalStatus: statusFilter,
-    });
-  }, [debouncedChatFilter, normalizedTrackingFilter, statusFilter, userFilter]);
+  const tableResetKey = `${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}`;
 
   const stats = useMemo(
     () => ({
@@ -275,7 +258,6 @@ export function OrdersPage() {
     setChatFilter("");
     setUserFilter("");
     setStatusFilter("");
-    setFilters({ trackingNumber: "", telegramChatId: "", userId: "", finalStatus: "" });
   };
 
   const tableError = error || usersQuery.error;

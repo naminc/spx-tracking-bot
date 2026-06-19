@@ -3,7 +3,6 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { TrackingHistory, TrackingUser } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
-import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useTrackingHistories } from "../hooks/useTracking";
 import { useUsers } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
@@ -38,28 +37,23 @@ export function TrackingHistoryPage() {
   const [trackingInput, setTrackingInput] = useState(initialTrackingNumber);
   const [chatInput, setChatInput] = useState(initialChatId);
   const [userInput, setUserInput] = useState(initialUserId);
-  const [filters, setFilters] = useState({
-    trackingNumber: initialTrackingNumber,
-    telegramChatId: initialChatId,
-    userId: initialUserId,
-  });
   const [selectedHistory, setSelectedHistory] = useState<TrackingHistory | null>(null);
-  const debouncedTrackingInput = useDebouncedValue(trackingInput);
-  const debouncedChatInput = useDebouncedValue(chatInput);
-  const normalizedTrackingNumber = debouncedTrackingInput.trim().toUpperCase();
+  const normalizedTrackingNumber = trackingInput.trim().toUpperCase();
+  const normalizedChatId = chatInput.trim();
+  const normalizedUserId = userInput.trim();
   const { data = [], isLoading, isFetching, error, refetch } = useTrackingHistories({
-    trackingNumber: filters.trackingNumber || undefined,
-    telegramChatId: filters.telegramChatId || undefined,
-    userId: filters.userId || undefined,
+    trackingNumber: normalizedTrackingNumber || undefined,
+    telegramChatId: normalizedChatId || undefined,
+    userId: normalizedUserId || undefined,
   });
   const usersQuery = useUsers();
-  const tableResetKey = `${filters.trackingNumber}|${filters.telegramChatId}|${filters.userId}`;
+  const tableResetKey = `${normalizedTrackingNumber}|${normalizedChatId}|${normalizedUserId}`;
 
   useEffect(() => {
     const nextFilters = {
       trackingNumber: normalizedTrackingNumber,
-      telegramChatId: debouncedChatInput.trim(),
-      userId: userInput.trim(),
+      telegramChatId: normalizedChatId,
+      userId: normalizedUserId,
     };
     const nextSearchParams = new URLSearchParams();
 
@@ -75,9 +69,8 @@ export function TrackingHistoryPage() {
       nextSearchParams.set("userId", nextFilters.userId);
     }
 
-    setFilters(nextFilters);
     setSearchParams(nextSearchParams, { replace: true });
-  }, [debouncedChatInput, normalizedTrackingNumber, setSearchParams, userInput]);
+  }, [normalizedChatId, normalizedTrackingNumber, normalizedUserId, setSearchParams]);
 
   const columns = [
     {
@@ -135,7 +128,6 @@ export function TrackingHistoryPage() {
     setTrackingInput("");
     setChatInput("");
     setUserInput("");
-    setFilters({ trackingNumber: "", telegramChatId: "", userId: "" });
     setSearchParams({}, { replace: true });
   };
 

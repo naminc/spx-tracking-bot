@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { TrackingHistory, TrackingOrder, TrackingUser } from "../lib/types/tracking";
+import type { FinalStatus, TrackingHistory, TrackingOrder, TrackingUser } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
 import {
   useCreateTrackingOrder,
@@ -8,6 +8,7 @@ import {
   useTrackingHistories,
   useTrackingOrders,
 } from "../hooks/useTracking";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useUsers } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
 import { Badge } from "../components/ui/Badge";
@@ -18,8 +19,8 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
 
-const trackingNumberPattern = /^SPXVN[A-Z0-9]{6,40}$/i;
 const maxOrderNoteLength = 512;
+type OrderStatusFilter = FinalStatus | "";
 
 function optionalText(value: string | null | undefined) {
   return value && value.trim() ? value : "-";
@@ -84,29 +85,44 @@ function HistoryList({ trackingNumber }: { trackingNumber: string }) {
 }
 
 export function OrdersPage() {
-  const [includeCompleted, setIncludeCompleted] = useState(true);
   const [chatFilter, setChatFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("");
   const [trackingFilterInput, setTrackingFilterInput] = useState("");
-  const [appliedFilters, setAppliedFilters] = useState({
+  const [filters, setFilters] = useState({
     trackingNumber: "",
     telegramChatId: "",
     userId: "",
+    finalStatus: "" as OrderStatusFilter,
   });
   const [trackingNumber, setTrackingNumber] = useState("");
   const [selectedAddUserId, setSelectedAddUserId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [note, setNote] = useState("");
   const [historyOrder, setHistoryOrder] = useState<TrackingOrder | null>(null);
-  const { data = [], isLoading, error, refetch } = useTrackingOrders({
-    includeCompleted,
-    trackingNumber: appliedFilters.trackingNumber || undefined,
-    telegramChatId: appliedFilters.telegramChatId || undefined,
-    userId: appliedFilters.userId || undefined,
+  const debouncedTrackingFilter = useDebouncedValue(trackingFilterInput);
+  const debouncedChatFilter = useDebouncedValue(chatFilter);
+  const normalizedTrackingFilter = debouncedTrackingFilter.trim().toUpperCase();
+  const { data = [], isLoading, isFetching, error, refetch } = useTrackingOrders({
+    includeCompleted: true,
+    trackingNumber: filters.trackingNumber || undefined,
+    telegramChatId: filters.telegramChatId || undefined,
+    userId: filters.userId || undefined,
+    finalStatus: filters.finalStatus || undefined,
   });
   const usersQuery = useUsers();
   const createOrder = useCreateTrackingOrder();
   const deleteOrder = useDeleteTrackingOrder();
+  const tableResetKey = `${filters.trackingNumber}|${filters.telegramChatId}|${filters.userId}|${filters.finalStatus}`;
+
+  useEffect(() => {
+    setFilters({
+      trackingNumber: normalizedTrackingFilter,
+      telegramChatId: debouncedChatFilter.trim(),
+      userId: userFilter,
+      finalStatus: statusFilter,
+    });
+  }, [debouncedChatFilter, normalizedTrackingFilter, statusFilter, userFilter]);
 
   const stats = useMemo(
     () => ({
@@ -254,43 +270,22 @@ export function OrdersPage() {
     }
   };
 
-  const handleFilter = (event: React.FormEvent) => {
-    event.preventDefault();
-
-    const normalizedTrackingNumber = trackingFilterInput.trim().toUpperCase();
-
-    if (normalizedTrackingNumber && !trackingNumberPattern.test(normalizedTrackingNumber)) {
-      toast.error("Tracking number must look like SPXVN063015366786.");
-      return;
-    }
-
-    setAppliedFilters({
-      trackingNumber: normalizedTrackingNumber,
-      telegramChatId: chatFilter.trim(),
-      userId: userFilter,
-    });
-    setTrackingFilterInput(normalizedTrackingNumber);
-  };
-
   const handleClearFilter = () => {
     setTrackingFilterInput("");
     setChatFilter("");
     setUserFilter("");
-    setAppliedFilters({ trackingNumber: "", telegramChatId: "", userId: "" });
+    setStatusFilter("");
+    setFilters({ trackingNumber: "", telegramChatId: "", userId: "", finalStatus: "" });
   };
 
-  if (isLoading || usersQuery.isLoading) return null;
-  if (error || usersQuery.error) {
-    return (
-      <ErrorState
-        message={((error || usersQuery.error) as Error).message}
-        onRetry={() => {
-          refetch();
-          usersQuery.refetch();
-        }}
-      />
-    );
-  }
+  const tableError = error || usersQuery.error;
+  const tableErrorMessage = tableError ? (tableError as Error).message : "";
+
+  useEffect(() => {
+    if (tableErrorMessage) {
+      toast.error(tableErrorMessage, { id: "orders-filter-error" });
+    }
+  }, [tableErrorMessage]);
 
   return (
     <div className="space-y-4">
@@ -329,6 +324,7 @@ export function OrdersPage() {
           value={selectedAddUserId}
           onChange={handleAddUserChange}
           placeholder="Select user"
+          disabled={usersQuery.isLoading}
         />
         <Input
           label="Telegram Chat ID"
@@ -350,10 +346,7 @@ export function OrdersPage() {
         </div>
       </form>
 
-      <form
-        onSubmit={handleFilter}
-        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1fr_1.4fr_auto_auto_auto] md:items-end"
-      >
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1fr_1.4fr_180px_auto] md:items-end">
         <Input
           label="Tracking Number"
           value={trackingFilterInput}
@@ -371,27 +364,49 @@ export function OrdersPage() {
           users={usersQuery.data ?? []}
           value={userFilter}
           onChange={setUserFilter}
+          disabled={usersQuery.isLoading}
         />
-        <label className="flex h-10 items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={includeCompleted}
-            onChange={(event) => setIncludeCompleted(event.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          Include completed
-        </label>
-        <Button type="submit">Filter</Button>
+        <div>
+          <label htmlFor="order-status-filter" className="mb-1 block text-sm font-medium text-gray-700">
+            Status
+          </label>
+          <select
+            id="order-status-filter"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as OrderStatusFilter)}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">All statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="FAILED">Failed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
         <Button type="button" variant="secondary" onClick={handleClearFilter}>
           Clear
         </Button>
-      </form>
+      </div>
 
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        {data.length > 0 ? (
-          <PaginatedTable columns={columns} data={data} keyExtractor={(order) => String(order.id)} initialPageSize={10} />
+        {tableError ? (
+          <ErrorState
+            message={(tableError as Error).message}
+            onRetry={() => {
+              refetch();
+              usersQuery.refetch();
+            }}
+          />
         ) : (
-          <EmptyState message="No orders found" />
+          <PaginatedTable
+            columns={columns}
+            data={data}
+            keyExtractor={(order) => String(order.id)}
+            initialPageSize={10}
+            resetKey={tableResetKey}
+            loading={isLoading || isFetching}
+            emptyMessage="No orders found"
+          />
         )}
       </div>
 

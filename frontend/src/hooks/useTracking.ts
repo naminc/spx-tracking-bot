@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "../lib/api/client";
-import type { TrackingHistory, TrackingOrder } from "../lib/types/tracking";
+import type { FinalStatus, TrackingHistory, TrackingOrder } from "../lib/types/tracking";
 
 type OrderFilters = {
   includeCompleted: boolean;
@@ -9,6 +9,7 @@ type OrderFilters = {
   telegramChatId?: string;
   userId?: string;
   telegramUserId?: string;
+  finalStatus?: FinalStatus;
 };
 
 type HistoryFilters = {
@@ -49,6 +50,7 @@ export function useTrackingOrders(filters: OrderFilters) {
           telegramChatId: filters.telegramChatId?.trim(),
           userId: filters.userId?.trim(),
           telegramUserId: filters.telegramUserId?.trim(),
+          finalStatus: filters.finalStatus,
         })}`,
       ),
   });

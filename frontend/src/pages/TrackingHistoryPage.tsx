@@ -1,20 +1,17 @@
-import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { TrackingHistory, TrackingUser } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useTrackingHistories } from "../hooks/useTracking";
 import { useUsers } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
 import { Button } from "../components/ui/Button";
-import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
-
-const trackingNumberPattern = /^SPXVN[A-Z0-9]{6,40}$/i;
 
 function optionalText(value: string | null | undefined) {
   return value && value.trim() ? value : "-";
@@ -47,12 +44,40 @@ export function TrackingHistoryPage() {
     userId: initialUserId,
   });
   const [selectedHistory, setSelectedHistory] = useState<TrackingHistory | null>(null);
-  const { data = [], isLoading, error, refetch } = useTrackingHistories({
+  const debouncedTrackingInput = useDebouncedValue(trackingInput);
+  const debouncedChatInput = useDebouncedValue(chatInput);
+  const normalizedTrackingNumber = debouncedTrackingInput.trim().toUpperCase();
+  const { data = [], isLoading, isFetching, error, refetch } = useTrackingHistories({
     trackingNumber: filters.trackingNumber || undefined,
     telegramChatId: filters.telegramChatId || undefined,
     userId: filters.userId || undefined,
   });
   const usersQuery = useUsers();
+  const tableResetKey = `${filters.trackingNumber}|${filters.telegramChatId}|${filters.userId}`;
+
+  useEffect(() => {
+    const nextFilters = {
+      trackingNumber: normalizedTrackingNumber,
+      telegramChatId: debouncedChatInput.trim(),
+      userId: userInput.trim(),
+    };
+    const nextSearchParams = new URLSearchParams();
+
+    if (nextFilters.trackingNumber) {
+      nextSearchParams.set("trackingNumber", nextFilters.trackingNumber);
+    }
+
+    if (nextFilters.telegramChatId) {
+      nextSearchParams.set("telegramChatId", nextFilters.telegramChatId);
+    }
+
+    if (nextFilters.userId) {
+      nextSearchParams.set("userId", nextFilters.userId);
+    }
+
+    setFilters(nextFilters);
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [debouncedChatInput, normalizedTrackingNumber, setSearchParams, userInput]);
 
   const columns = [
     {
@@ -106,41 +131,6 @@ export function TrackingHistoryPage() {
     },
   ];
 
-  const handleFilter = (event: FormEvent) => {
-    event.preventDefault();
-
-    const normalizedTrackingNumber = trackingInput.trim().toUpperCase();
-    const normalizedChatId = chatInput.trim();
-    const normalizedUserId = userInput.trim();
-
-    if (normalizedTrackingNumber && !trackingNumberPattern.test(normalizedTrackingNumber)) {
-      toast.error("Tracking number must look like SPXVN063015366786.");
-      return;
-    }
-
-    const nextFilters = {
-      trackingNumber: normalizedTrackingNumber,
-      telegramChatId: normalizedChatId,
-      userId: normalizedUserId,
-    };
-    const nextSearchParams = new URLSearchParams();
-
-    if (nextFilters.trackingNumber) {
-      nextSearchParams.set("trackingNumber", nextFilters.trackingNumber);
-    }
-
-    if (nextFilters.telegramChatId) {
-      nextSearchParams.set("telegramChatId", nextFilters.telegramChatId);
-    }
-
-    if (nextFilters.userId) {
-      nextSearchParams.set("userId", nextFilters.userId);
-    }
-
-    setFilters(nextFilters);
-    setSearchParams(nextSearchParams, { replace: true });
-  };
-
   const handleClear = () => {
     setTrackingInput("");
     setChatInput("");
@@ -149,27 +139,20 @@ export function TrackingHistoryPage() {
     setSearchParams({}, { replace: true });
   };
 
-  if (isLoading || usersQuery.isLoading) return null;
-  if (error || usersQuery.error) {
-    return (
-      <ErrorState
-        message={((error || usersQuery.error) as Error).message}
-        onRetry={() => {
-          refetch();
-          usersQuery.refetch();
-        }}
-      />
-    );
-  }
+  const tableError = error || usersQuery.error;
+  const tableErrorMessage = tableError ? (tableError as Error).message : "";
+
+  useEffect(() => {
+    if (tableErrorMessage) {
+      toast.error(tableErrorMessage, { id: "tracking-history-filter-error" });
+    }
+  }, [tableErrorMessage]);
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Tracking History</h1>
 
-      <form
-        onSubmit={handleFilter}
-        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1fr_1.4fr_auto_auto] md:items-end"
-      >
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1fr_1.4fr_auto] md:items-end">
         <Input
           label="Tracking Number"
           placeholder="SPXVN063015366786"
@@ -187,24 +170,33 @@ export function TrackingHistoryPage() {
           users={usersQuery.data ?? []}
           value={userInput}
           onChange={setUserInput}
+          disabled={usersQuery.isLoading}
         />
-        <Button type="submit">Filter</Button>
         <Button type="button" variant="secondary" onClick={handleClear}>
           Clear
         </Button>
-      </form>
+      </div>
 
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        {data.length > 0 ? (
+        {tableError ? (
+          <ErrorState
+            message={(tableError as Error).message}
+            onRetry={() => {
+              refetch();
+              usersQuery.refetch();
+            }}
+          />
+        ) : (
           <PaginatedTable
             columns={columns}
             data={data}
             keyExtractor={(history) => String(history.id)}
             onRowClick={setSelectedHistory}
             initialPageSize={10}
+            resetKey={tableResetKey}
+            loading={isLoading || isFetching}
+            emptyMessage="No tracking history found"
           />
-        ) : (
-          <EmptyState message="No tracking history found" />
         )}
       </div>
 

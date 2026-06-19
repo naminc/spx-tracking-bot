@@ -9,6 +9,9 @@ type Props<T> = {
   onRowClick?: (item: T) => void;
   initialPageSize?: number;
   pageSizeOptions?: number[];
+  resetKey?: string | number;
+  loading?: boolean;
+  emptyMessage?: string;
 };
 
 export function PaginatedTable<T>({
@@ -18,10 +21,17 @@ export function PaginatedTable<T>({
   onRowClick,
   initialPageSize = 10,
   pageSizeOptions = [10, 20, 50],
+  resetKey,
+  loading = false,
+  emptyMessage = "No data found",
 }: Props<T>) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+
+  useEffect(() => {
+    setPage(1);
+  }, [resetKey]);
 
   useEffect(() => {
     setPage((currentPage) => Math.min(currentPage, totalPages));
@@ -38,9 +48,15 @@ export function PaginatedTable<T>({
   return (
     <div>
       <Table columns={columns} data={pageData} keyExtractor={keyExtractor} onRowClick={onRowClick} />
+      {data.length === 0 && (
+        <div className="border-t border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
+          {loading ? "Loading..." : emptyMessage}
+        </div>
+      )}
       <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
         <div>
           Showing {startItem}-{endItem} of {data.length}
+          {loading && data.length > 0 ? <span className="ml-2 text-xs text-gray-400">Refreshing...</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2">

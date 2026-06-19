@@ -36,6 +36,7 @@ type ListOrdersFilters = {
   telegramChatId?: string;
   userId?: number;
   telegramUserId?: string;
+  finalStatus?: FinalStatus;
   includeCompleted?: boolean;
 };
 

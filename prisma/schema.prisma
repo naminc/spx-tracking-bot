@@ -27,25 +27,36 @@ enum BroadcastRecipientStatus {
   FAILED
 }
 
+enum TrackingOrderActionType {
+  ADD
+  REMOVE
+}
+
+enum TrackingOrderActionSource {
+  TELEGRAM
+  ADMIN
+}
+
 model TrackingOrder {
-  id                Int               @id @default(autoincrement())
-  trackingNumber    String            @db.VarChar(64)
-  telegramChatId    String            @db.VarChar(64)
+  id                Int                      @id @default(autoincrement())
+  trackingNumber    String                   @db.VarChar(64)
+  telegramChatId    String                   @db.VarChar(64)
   userId            Int?
-  user              User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  note              String?           @db.VarChar(512)
-  currentStatus     String            @db.VarChar(512)
-  currentStatusCode String            @db.VarChar(128)
-  currentLocation   String?           @db.VarChar(255)
-  nextLocation      String?           @db.VarChar(255)
-  milestoneCode     String?           @db.VarChar(128)
-  milestoneName     String?           @db.VarChar(255)
+  user              User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  note              String?                  @db.VarChar(512)
+  currentStatus     String                   @db.VarChar(512)
+  currentStatusCode String                   @db.VarChar(128)
+  currentLocation   String?                  @db.VarChar(255)
+  nextLocation      String?                  @db.VarChar(255)
+  milestoneCode     String?                  @db.VarChar(128)
+  milestoneName     String?                  @db.VarChar(255)
   lastEventTime     DateTime
-  isCompleted       Boolean           @default(false)
-  finalStatus       FinalStatus       @default(PENDING)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  isCompleted       Boolean                  @default(false)
+  finalStatus       FinalStatus              @default(PENDING)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   histories         TrackingHistory[]
+  actionLogs        TrackingOrderActionLog[]
 
   @@unique([trackingNumber, telegramChatId])
   @@index([isCompleted])
@@ -76,16 +87,41 @@ model TrackingHistory {
 }
 
 model User {
-  id                  Int                  @id @default(autoincrement())
-  telegramUserId      String               @unique @db.VarChar(64)
-  username            String?              @db.VarChar(64)
-  firstName           String?              @db.VarChar(128)
-  lastName            String?              @db.VarChar(128)
-  createdAt           DateTime             @default(now())
-  orders              TrackingOrder[]
-  broadcastRecipients BroadcastRecipient[]
+  id                      Int                      @id @default(autoincrement())
+  telegramUserId          String                   @unique @db.VarChar(64)
+  username                String?                  @db.VarChar(64)
+  firstName               String?                  @db.VarChar(128)
+  lastName                String?                  @db.VarChar(128)
+  createdAt               DateTime                 @default(now())
+  orders                  TrackingOrder[]
+  broadcastRecipients     BroadcastRecipient[]
+  trackingOrderActionLogs TrackingOrderActionLog[]
 
   @@index([username])
+}
+
+model TrackingOrderActionLog {
+  id              Int                       @id @default(autoincrement())
+  action          TrackingOrderActionType
+  source          TrackingOrderActionSource
+  trackingNumber  String                    @db.VarChar(64)
+  telegramChatId  String?                   @db.VarChar(64)
+  userId          Int?
+  user            User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orderId         Int?
+  order           TrackingOrder?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  adminTelegramId String?                   @db.VarChar(64)
+  adminUsername   String?                   @db.VarChar(64)
+  metadata        Json?
+  createdAt       DateTime                  @default(now())
+
+  @@index([action])
+  @@index([source])
+  @@index([trackingNumber])
+  @@index([telegramChatId])
+  @@index([userId])
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 model Broadcast {

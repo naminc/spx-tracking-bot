@@ -10,6 +10,11 @@ import {
 } from '../tracking/tracking.service';
 import { SettingService, settingService } from '../admin/setting/setting.service';
 import { UserRepository, userRepository } from '../admin/user/user.repository';
+import {
+  TrackingOrderActionSource,
+  TrackingOrderActionType,
+  trackingOrderActionLogService,
+} from '../tracking-action-log/tracking-action-log.service';
 import { telegramMessageBuilder } from './telegram-message.builder';
 import type {
   TelegramCallbackQuery,
@@ -382,12 +387,37 @@ export class TelegramService {
 
       if (alreadyExists) {
         const result = await this.service.addOrder(parsed.data, chatId, note);
+        await trackingOrderActionLogService.safeCreateLog({
+          action: TrackingOrderActionType.ADD,
+          source: TrackingOrderActionSource.TELEGRAM,
+          trackingNumber: result.order.trackingNumber,
+          telegramChatId: chatId,
+          userId: result.order.userId,
+          orderId: result.order.id,
+          metadata: {
+            alreadyExists: true,
+            note: note ?? null,
+            noteUpdated: result.noteUpdated,
+          },
+        });
         await this.sendMessage(chatId, telegramMessageBuilder.alreadyExists(result));
         return;
       }
 
       await this.sendMessage(chatId, telegramMessageBuilder.checking(parsed.data));
       const result = await this.service.addOrder(parsed.data, chatId, note);
+      await trackingOrderActionLogService.safeCreateLog({
+        action: TrackingOrderActionType.ADD,
+        source: TrackingOrderActionSource.TELEGRAM,
+        trackingNumber: result.order.trackingNumber,
+        telegramChatId: chatId,
+        userId: result.order.userId,
+        orderId: result.order.id,
+        metadata: {
+          alreadyExists: false,
+          note: note ?? null,
+        },
+      });
       await this.sendMessage(chatId, telegramMessageBuilder.addSuccess(result));
 
       if (result.order.finalStatus !== FinalStatus.PENDING) {
@@ -426,7 +456,17 @@ export class TelegramService {
     }
 
     try {
-      await this.service.removeOrder(parsed.data, chatId);
+      const deletedOrder = await this.service.removeOrder(parsed.data, chatId);
+      await trackingOrderActionLogService.safeCreateLog({
+        action: TrackingOrderActionType.REMOVE,
+        source: TrackingOrderActionSource.TELEGRAM,
+        trackingNumber: deletedOrder.trackingNumber,
+        telegramChatId: chatId,
+        userId: deletedOrder.userId,
+        metadata: {
+          deletedOrderId: deletedOrder.id,
+        },
+      });
       await this.sendMessage(chatId, telegramMessageBuilder.removeSuccess(parsed.data));
     } catch (error) {
       logger.error({ err: error, chatId, rawTrackingNumber }, 'Failed to remove Telegram tracking order');

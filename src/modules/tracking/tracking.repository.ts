@@ -42,6 +42,7 @@ type FindOrdersFilters = {
   telegramChatId?: string;
   userId?: number;
   telegramUserId?: string;
+  finalStatus?: FinalStatus;
   includeCompleted?: boolean;
 };
 
@@ -108,9 +109,14 @@ const toJsonObject = (value: Record<string, unknown>): InputJsonObject =>
 export class TrackingRepository {
   findOrders(filters: FindOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
     const where: Prisma.TrackingOrderWhereInput = {
-      trackingNumber: filters.trackingNumber,
-      telegramChatId: filters.telegramChatId,
-      ...(filters.includeCompleted ? {} : { isCompleted: false }),
+      trackingNumber: filters.trackingNumber
+        ? { contains: filters.trackingNumber }
+        : undefined,
+      telegramChatId: filters.telegramChatId
+        ? { contains: filters.telegramChatId }
+        : undefined,
+      finalStatus: filters.finalStatus,
+      ...(filters.finalStatus || filters.includeCompleted ? {} : { isCompleted: false }),
     };
 
     if (filters.userId) {
@@ -273,8 +279,12 @@ export class TrackingRepository {
         filters.trackingNumber || filters.telegramChatId || filters.userId || filters.telegramUserId
           ? {
               order: {
-                trackingNumber: filters.trackingNumber,
-                telegramChatId: filters.telegramChatId,
+                trackingNumber: filters.trackingNumber
+                  ? { contains: filters.trackingNumber }
+                  : undefined,
+                telegramChatId: filters.telegramChatId
+                  ? { contains: filters.telegramChatId }
+                  : undefined,
                 userId: filters.userId,
                 user: !filters.userId && filters.telegramUserId
                   ? { telegramUserId: filters.telegramUserId }

@@ -18,4 +18,8 @@ export const statusMap: Record<string, StatusConfig> = {
   DRAFT: { color: "bg-gray-100 text-gray-700", label: "Draft" },
   SENDING: { color: "bg-blue-100 text-blue-800", label: "Sending" },
   SENT: { color: "bg-green-100 text-green-800", label: "Sent" },
+  ADD: { color: "bg-green-100 text-green-800", label: "Add" },
+  REMOVE: { color: "bg-red-100 text-red-800", label: "Remove" },
+  TELEGRAM: { color: "bg-sky-100 text-sky-800", label: "Telegram" },
+  ADMIN: { color: "bg-indigo-100 text-indigo-800", label: "Admin" },
 };

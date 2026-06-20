@@ -1,6 +1,8 @@
 import type { AddTrackingResult } from '../tracking/tracking.service';
+import type { TrackingCarrier } from '../tracking/tracking-carrier';
 
 type OrderListItem = {
+  carrier: TrackingCarrier;
   trackingNumber: string;
   currentStatus: string;
   lastEventTime: Date;
@@ -8,6 +10,7 @@ type OrderListItem = {
 };
 
 type TrackingMessageInput = {
+  carrier: TrackingCarrier;
   trackingNumber: string;
   status: string;
   location?: string;
@@ -38,16 +41,24 @@ const formatDate = (date: Date): string =>
     timeZone: 'Asia/Ho_Chi_Minh',
   }).format(date);
 
-const removeCommandIcon = '<tg-emoji emoji-id="5836790414153094482">❎</tg-emoji>';
+const removeCommandIcon = '<tg-emoji emoji-id="5089513980649538387">❎</tg-emoji>';
 const contactCommandIcon = '<tg-emoji emoji-id="5443038326535759644">☎️</tg-emoji>';
-const addCommandIcon = '<tg-emoji emoji-id="4956368289371522616">➕</tg-emoji>';
+const addCommandIcon = '<tg-emoji emoji-id="5305460950562777340">➕</tg-emoji>';
 const startCommandIcon = '<tg-emoji emoji-id="6203791465471022369">ℹ️</tg-emoji>';
-const listCommandIcon = '<tg-emoji emoji-id="5877618313139327986">📋</tg-emoji>';
+const listCommandIcon = '<tg-emoji emoji-id="5265132878395621818">📋</tg-emoji>';
 const pingCommandIcon = '<tg-emoji emoji-id="5213260226194583825">📌</tg-emoji>';
 const truckCommandIcon = '<tg-emoji emoji-id="6314504740130525114">🚚</tg-emoji>';
 const helloCommandIcon = '<tg-emoji emoji-id="6143364153244390082">👋</tg-emoji>';
 const exampleCommandIcon = '<tg-emoji emoji-id="6138429248706188838">🧾</tg-emoji>';
 const noteCommandIcon = '<tg-emoji emoji-id="6167959932004997710">📝</tg-emoji>';
+const adminCommandIcon = '<tg-emoji emoji-id="6287130615745615050">👮</tg-emoji>';
+const callCommandIcon = '<tg-emoji emoji-id="5847950190887046211">☎️</tg-emoji>';
+const robotCommandIcon = '<tg-emoji emoji-id="5352899869369446268">📌</tg-emoji>';
+const successCommandIcon = '<tg-emoji emoji-id="6113738224750826011">✅</tg-emoji>';
+const codeCommandIcon = '<tg-emoji emoji-id="5913410302841458295">💻</tg-emoji>';
+const chartCommandIcon = '<tg-emoji emoji-id="5246762912428603768">📊</tg-emoji>';
+const timeCommandIcon = '🕒';
+const statusCommandIcon = '📌';
 
 const buildLocationLines = (input: { location?: string; nextLocation?: string }): string => {
   const lines = [
@@ -65,39 +76,83 @@ const buildNoteLine = (note?: string | null): string => {
   return trimmedNote ? `\n📝 <b>Ghi chú:</b> ${escapeHtml(trimmedNote)}` : '';
 };
 
+const buildCarrierLine = (carrier: TrackingCarrier): string =>
+  `\n🚚 <b>Đơn vị:</b> ${escapeHtml(carrier)}`;
+
 const buildCompletedMessage = (title: string, input: TrackingMessageInput): string => `<b>${title}</b>
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildNoteLine(input.note)}
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildCarrierLine(input.carrier)}${buildNoteLine(input.note)}
 📌 <b>Trạng thái:</b> ${escapeHtml(input.status)}${buildLocationLines(input)}
-🕒 <b>Thời gian:</b> ${escapeHtml(formatDate(input.eventTime))}
+${timeCommandIcon} <b>Thời gian:</b> ${escapeHtml(formatDate(input.eventTime))}
 ⛔ <b>Theo dõi:</b> Bot đã tự động ngừng theo dõi đơn này.`;
 
 export const telegramMessageBuilder = {
   start(): string {
-    return `<b>${truckCommandIcon} SPX Tracking Bot</b>
+    return `<b>${truckCommandIcon} EXPRESS TRACKING BOT</b>
 ━━━━━━━━━━━━━━━━
 
-${helloCommandIcon} Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng SPX tự động.
+${helloCommandIcon} Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng SPX/GHN tự động.
 
-<b>${pingCommandIcon} Lệnh hỗ trợ</b>
+<b>${robotCommandIcon} Lệnh hỗ trợ</b>
 ━━━━━━━━━━━━━━━━
 ${addCommandIcon} <b>/add &lt;mã vận đơn&gt; &lt;ghi chú&gt;</b> - Thêm đơn hàng cần theo dõi
 ${listCommandIcon} <b>/list</b> - Xem danh sách đơn đang theo dõi
 ${removeCommandIcon} <b>/remove &lt;mã vận đơn&gt;</b> - Xoá đơn khỏi danh sách
+${truckCommandIcon} <b>/carriers</b> - Xem đơn vị vận chuyển hỗ trợ
 ${contactCommandIcon} <b>/contact</b> - Liên hệ admin
-${startCommandIcon} <b>/start</b> - Xem hướng dẫn
+${startCommandIcon} <b>/help</b> - Xem hướng dẫn chi tiết
 
-${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
   },
 
+  help(): string {
+    return `<b>${startCommandIcon} Hướng dẫn chi tiết</b>
+━━━━━━━━━━━━━━━━
+
+<b>1. Thêm đơn theo dõi</b>
+${codeCommandIcon} <b>Cú pháp:</b> <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>
+${noteCommandIcon} <b>Chú ý:</b> <b>&lt;ghi_chú&gt;</b> có thể để trống. Bot tự nhận diện <b>SPX/GHN</b> theo mã vận đơn.
+${exampleCommandIcon} <b>SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${exampleCommandIcon} <b>GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
+
+<b>2. Xem danh sách đang theo dõi</b>
+${listCommandIcon} <code>/list</code>
+
+<b>3. Xoá đơn khỏi danh sách</b>
+${codeCommandIcon} <b>Cú pháp:</b> <code>/remove &lt;mã_vận_đơn&gt;</code>
+${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>
+
+<b>4. Xem đơn vị vận chuyển hỗ trợ</b>
+${truckCommandIcon} <code>/carriers</code>
+
+<b>5. Liên hệ admin</b>
+${contactCommandIcon} <code>/contact</code>`;
+  },
+
+  supportedCarriers(): string {
+    return `<b>${truckCommandIcon} Đơn vị vận chuyển hỗ trợ</b>
+━━━━━━━━━━━━━━━━
+
+<b>SPX Express</b>
+🧾 <b>Định dạng:</b> <code>SPXVN...</code>
+${exampleCommandIcon} <b>Ví dụ:</b> <code>SPXVN063015366786</code>
+
+<b>Giao Hàng Nhanh - GHN</b>
+🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
+${exampleCommandIcon} <b>Ví dụ:</b> <code>GYH9PRA6</code>
+
+${startCommandIcon} <b>Cách dùng:</b> Chỉ cần gửi <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>, bot sẽ tự nhận diện đơn vị vận chuyển.`;
+  },
+
   contact(adminUsername: string): string {
-    return `<b>☎️ Liên hệ admin</b>
+    return `<b> ${callCommandIcon} Liên hệ admin</b>
 ━━━━━━━━━━━━━━━━
 
 💬 <b>Hỗ trợ:</b> Nếu bạn cần hỗ trợ, vui lòng liên hệ:
-👤 <b>Admin Telegram:</b> ${escapeHtml(adminUsername)}`;
+${adminCommandIcon} <b>Admin Telegram:</b> ${escapeHtml(adminUsername)}`;
   },
 
   maintenance(): string {
@@ -108,13 +163,14 @@ Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sa
   },
 
   addInstruction(): string {
-    return `<b>${addCommandIcon} Thêm đơn SPX</b>
+    return `<b>${addCommandIcon} Thêm đơn tracking</b>
 ━━━━━━━━━━━━━━━━
 
 ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn ngay sau lệnh <b>/add</b>.
-⌨️ <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code></b>
+${codeCommandIcon} <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code></b>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống
-${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786 iPhone 17</code>`;
+${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>`;
   },
 
   directTrackingNumberNotAllowed(trackingNumber: string): string {
@@ -122,7 +178,7 @@ ${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786 iPhone 17</c
 ━━━━━━━━━━━━━━━━
 
 ⚠️ <b>Lý do:</b> Bot chỉ thêm đơn khi bạn gửi đúng cú pháp.
-🧾 <b>Cú pháp:</b> <code>/add ${escapeHtml(trackingNumber)} &lt;ghi_chú&gt;</code>`;
+${codeCommandIcon} <b>Cú pháp:</b> <code>/add ${escapeHtml(trackingNumber)} &lt;ghi_chú&gt;</code>`;
   },
 
   checking(trackingNumber: string): string {
@@ -134,12 +190,12 @@ ${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786 iPhone 17</c
   },
 
   addSuccess(result: AddTrackingResult): string {
-    return `<b>✅ Đã thêm đơn SPX thành công!</b>
+    return `<b>${successCommandIcon} Đã thêm đơn tracking thành công!</b>
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(result.order.trackingNumber)}</code>${buildNoteLine(result.order.note)}
-📌 <b>Trạng thái hiện tại:</b> ${escapeHtml(result.order.currentStatus)}${buildLocationLines(result.latestRecord)}
-🕒 <b>Thời gian cập nhật:</b> ${escapeHtml(formatDate(result.order.lastEventTime))}
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(result.order.trackingNumber)}</code>${buildCarrierLine(result.order.carrier)}${buildNoteLine(result.order.note)}
+${statusCommandIcon} <b>Trạng thái hiện tại:</b> ${escapeHtml(result.order.currentStatus)}${buildLocationLines(result.latestRecord)}
+${timeCommandIcon} <b>Thời gian cập nhật:</b> ${escapeHtml(formatDate(result.order.lastEventTime))}
 🔔 <b>Theo dõi:</b> Bot sẽ tự động kiểm tra và gửi thông báo khi có trạng thái mới.`;
   },
 
@@ -147,50 +203,51 @@ ${exampleCommandIcon} <b>Ví dụ:</b> <code>/add SPXVN063015366786 iPhone 17</c
     return `<b>ℹ️ Đơn này đang được theo dõi</b>
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(result.order.trackingNumber)}</code>${buildNoteLine(result.order.note)}
-${result.noteUpdated ? '✅ <b>Cập nhật:</b> Đã lưu ghi chú mới cho đơn này.\n' : ''}ℹ️ <b>Gợi ý:</b> Bạn có thể dùng <b>/list</b> để xem danh sách đơn đang theo dõi.`;
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(result.order.trackingNumber)}</code>${buildCarrierLine(result.order.carrier)}${buildNoteLine(result.order.note)}
+${result.noteUpdated ? `${successCommandIcon} <b>Cập nhật:</b> Đã lưu ghi chú mới cho đơn này.\n` : ''}ℹ️ <b>Gợi ý:</b> Bạn có thể dùng <b>/list</b> để xem danh sách đơn đang theo dõi.`;
   },
 
   update(input: UpdateMessageInput): string {
-    return `<b>🔔 SPX Update:</b> ${escapeHtml(input.status)}
+    return `<b>🔔 ${escapeHtml(input.carrier)} Update:</b> ${escapeHtml(input.status)}
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildNoteLine(input.note)}
-📌 <b>Trạng thái:</b> ${escapeHtml(input.status)}
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildCarrierLine(input.carrier)}${buildNoteLine(input.note)}
+${statusCommandIcon} <b>Trạng thái:</b> ${escapeHtml(input.status)}
 🏷️ <b>Mã trạng thái:</b> <code>${escapeHtml(input.trackingCode)}</code>
 🚚 <b>Giai đoạn:</b> ${escapeHtml(input.milestoneName || 'Không có dữ liệu')}${buildLocationLines(input)}
-🕒 <b>Thời gian:</b> ${escapeHtml(formatDate(input.eventTime))}`;
+${timeCommandIcon} <b>Thời gian:</b> ${escapeHtml(formatDate(input.eventTime))}`;
   },
 
   list(orders: OrderListItem[]): string {
     const orderItems = orders
       .map(
-        (order, index) => `<b>${index + 1}. 📦 <code>${escapeHtml(order.trackingNumber)}</code></b>${buildNoteLine(order.note)}
-📌 <b>Trạng thái:</b> ${escapeHtml(order.currentStatus)}
-🕒 <b>Thời gian:</b> ${escapeHtml(formatDate(order.lastEventTime))}`,
+        (order, index) => `<b>${index + 1}. 📦 <code>${escapeHtml(order.trackingNumber)}</code></b>${buildCarrierLine(order.carrier)}${buildNoteLine(order.note)}
+${statusCommandIcon} <b>Trạng thái:</b> ${escapeHtml(order.currentStatus)}
+${timeCommandIcon} <b>Thời gian:</b> ${escapeHtml(formatDate(order.lastEventTime))}`,
       )
       .join('\n\n');
 
-    return `<b>📦 Danh sách đơn đang theo dõi</b>
+    return `<b>${listCommandIcon} Danh sách đơn đang theo dõi</b>
 ━━━━━━━━━━━━━━━━
 
 ${orderItems}
 
-📊 <b>Tổng cộng:</b> ${escapeHtml(orders.length)} đơn`;
+${chartCommandIcon} <b>Tổng cộng:</b> ${escapeHtml(orders.length)} đơn`;
   },
 
   emptyList(): string {
     return `<b>📭 Chưa có đơn nào đang theo dõi</b>
 ━━━━━━━━━━━━━━━━
 
-🧾 <b>Lệnh mẫu:</b> <code>/add SPXVN063015366786</code>`;
+${codeCommandIcon} <b>Lệnh mẫu:</b> <code>/add SPXVN063015366786</code>
+${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add GYH9PRA6</code>`;
   },
 
-  removeSuccess(trackingNumber: string): string {
+  removeSuccess(trackingNumber: string, carrier: TrackingCarrier): string {
     return `<b>🗑️ Đã xoá đơn khỏi danh sách theo dõi</b>
 ━━━━━━━━━━━━━━━━
 
-📦 <b>Mã vận đơn:</b> <code>${escapeHtml(trackingNumber)}</code>`;
+📦 <b>Mã vận đơn:</b> <code>${escapeHtml(trackingNumber)}</code>${buildCarrierLine(carrier)}`;
   },
 
   removeMissingTrackingNumber(): string {
@@ -198,7 +255,7 @@ ${orderItems}
 ━━━━━━━━━━━━━━━━
 
 ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cần xoá sau lệnh <b>/remove</b>.
-⌨️ <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b>
+${codeCommandIcon} <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b>
  ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>`;
   },
 
@@ -206,7 +263,8 @@ ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cầ
     return `<b>❌ Mã vận đơn không hợp lệ</b>
 ━━━━━━━━━━━━━━━━
 
-🧾 <b>Định dạng:</b> <code>SPXVN063015366786</code>
+🧾 <b>Định dạng SPX:</b> <code>SPXVN063015366786</code>
+🧾 <b>Định dạng GHN:</b> <code>GYH9PRA6</code>
 🔁 <b>Gợi ý:</b> Vui lòng kiểm tra lại và gửi lại mã đúng.`;
   },
 
@@ -235,7 +293,7 @@ ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cầ
 ━━━━━━━━━━━━━━━━
 
 📦 <b>Mã vận đơn:</b> <code>${escapeHtml(trackingNumber)}</code>
-⚠️ <b>Lý do:</b> SPX chưa trả về dữ liệu hoặc API đang lỗi.
+⚠️ <b>Lý do:</b> Đơn vị vận chuyển chưa trả về dữ liệu hoặc API đang lỗi.
 🔁 <b>Gợi ý:</b> Vui lòng thử lại sau.`;
   },
 

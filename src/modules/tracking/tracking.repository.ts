@@ -1,8 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import type { InputJsonObject, InputJsonValue } from '@prisma/client/runtime/library';
 import { prisma } from '../../shared/prisma/client';
-import type { NormalizedSpxRecord } from '../spx/spx.service';
 import type { FinalStatus } from './final-status';
+import type { TrackingCarrier } from './tracking-carrier';
+import type { NormalizedTrackingRecord } from './tracking-record';
 
 const userSelect = {
   id: true,
@@ -17,6 +18,7 @@ const trackingOrderInclude = {
 } satisfies Prisma.TrackingOrderInclude;
 
 const trackingHistoryOrderSelect = {
+  carrier: true,
   trackingNumber: true,
   telegramChatId: true,
   userId: true,
@@ -38,6 +40,7 @@ export type TrackingHistoryWithOrderEntity = Prisma.TrackingHistoryGetPayload<{
 }>;
 
 type FindOrdersFilters = {
+  carrier?: TrackingCarrier;
   trackingNumber?: string;
   telegramChatId?: string;
   userId?: number;
@@ -47,17 +50,18 @@ type FindOrdersFilters = {
 };
 
 type CreateOrderInput = {
+  carrier: TrackingCarrier;
   trackingNumber: string;
   telegramChatId: string;
   note?: string | null;
-  latestRecord: NormalizedSpxRecord;
+  latestRecord: NormalizedTrackingRecord;
   isCompleted: boolean;
   finalStatus: FinalStatus;
 };
 
 type UpdateOrderInput = {
   orderId: number;
-  latestRecord: NormalizedSpxRecord;
+  latestRecord: NormalizedTrackingRecord;
   isCompleted: boolean;
   finalStatus: FinalStatus;
 };
@@ -109,6 +113,7 @@ const toJsonObject = (value: Record<string, unknown>): InputJsonObject =>
 export class TrackingRepository {
   findOrders(filters: FindOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
     const where: Prisma.TrackingOrderWhereInput = {
+      carrier: filters.carrier,
       trackingNumber: filters.trackingNumber
         ? { contains: filters.trackingNumber }
         : undefined,
@@ -140,21 +145,26 @@ export class TrackingRepository {
     });
   }
 
-  findByTrackingNumber(trackingNumber: string): Promise<TrackingOrderEntity | null> {
+  findByTrackingNumber(
+    trackingNumber: string,
+    carrier: TrackingCarrier,
+  ): Promise<TrackingOrderEntity | null> {
     return prisma.trackingOrder.findFirst({
-      where: { trackingNumber },
+      where: { carrier, trackingNumber },
       include: trackingOrderInclude,
       orderBy: { updatedAt: 'desc' },
     });
   }
 
   findByTrackingNumberAndChat(
+    carrier: TrackingCarrier,
     trackingNumber: string,
     telegramChatId: string,
   ): Promise<TrackingOrderEntity | null> {
     return prisma.trackingOrder.findUnique({
       where: {
-        trackingNumber_telegramChatId: {
+        carrier_trackingNumber_telegramChatId: {
+          carrier,
           trackingNumber,
           telegramChatId,
         },
@@ -186,6 +196,7 @@ export class TrackingRepository {
 
       const order = await transaction.trackingOrder.create({
         data: {
+          carrier: input.carrier,
           trackingNumber: input.trackingNumber,
           telegramChatId: input.telegramChatId,
           userId,
@@ -246,10 +257,11 @@ export class TrackingRepository {
   }
 
   async deleteByTrackingNumberAndChat(
+    carrier: TrackingCarrier,
     trackingNumber: string,
     telegramChatId: string,
   ): Promise<TrackingOrderEntity | null> {
-    const order = await this.findByTrackingNumberAndChat(trackingNumber, telegramChatId);
+    const order = await this.findByTrackingNumberAndChat(carrier, trackingNumber, telegramChatId);
 
     if (!order) {
       return null;
@@ -258,16 +270,21 @@ export class TrackingRepository {
     return prisma.trackingOrder.delete({ where: { id: order.id }, include: trackingOrderInclude });
   }
 
-  findHistoriesByTrackingNumber(trackingNumber: string): Promise<TrackingHistoryEntity[]> {
+  findHistoriesByTrackingNumber(
+    trackingNumber: string,
+    carrier: TrackingCarrier,
+  ): Promise<TrackingHistoryEntity[]> {
     return prisma.trackingHistory.findMany({
       where: {
-        order: { trackingNumber },
+        carrier,
+        order: { carrier, trackingNumber },
       },
       orderBy: { eventTime: 'desc' },
     });
   }
 
   listHistories(filters: {
+    carrier?: TrackingCarrier;
     trackingNumber?: string;
     telegramChatId?: string;
     userId?: number;
@@ -276,9 +293,15 @@ export class TrackingRepository {
   }): Promise<TrackingHistoryWithOrderEntity[]> {
     return prisma.trackingHistory.findMany({
       where:
-        filters.trackingNumber || filters.telegramChatId || filters.userId || filters.telegramUserId
+        filters.carrier ||
+        filters.trackingNumber ||
+        filters.telegramChatId ||
+        filters.userId ||
+        filters.telegramUserId
           ? {
+              carrier: filters.carrier,
               order: {
+                carrier: filters.carrier,
                 trackingNumber: filters.trackingNumber
                   ? { contains: filters.trackingNumber }
                   : undefined,
@@ -304,10 +327,11 @@ export class TrackingRepository {
 
   private toHistoryCreateInput(
     orderId: number,
-    latestRecord: NormalizedSpxRecord,
+    latestRecord: NormalizedTrackingRecord,
   ) {
     return {
       orderId,
+      carrier: latestRecord.carrier,
       trackingCode: latestRecord.trackingCode,
       trackingName: latestRecord.trackingName,
       status: latestRecord.status,

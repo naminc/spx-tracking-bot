@@ -14,6 +14,11 @@ enum FinalStatus {
   CANCELLED
 }
 
+enum TrackingCarrier {
+  SPX
+  GHN
+}
+
 enum BroadcastStatus {
   DRAFT
   SENDING
@@ -39,6 +44,7 @@ enum TrackingOrderActionSource {
 
 model TrackingOrder {
   id                Int                      @id @default(autoincrement())
+  carrier           TrackingCarrier          @default(SPX)
   trackingNumber    String                   @db.VarChar(64)
   telegramChatId    String                   @db.VarChar(64)
   userId            Int?
@@ -58,7 +64,8 @@ model TrackingOrder {
   histories         TrackingHistory[]
   actionLogs        TrackingOrderActionLog[]
 
-  @@unique([trackingNumber, telegramChatId])
+  @@unique([carrier, trackingNumber, telegramChatId])
+  @@index([carrier])
   @@index([isCompleted])
   @@index([trackingNumber])
   @@index([userId])
@@ -68,6 +75,7 @@ model TrackingHistory {
   id                Int           @id @default(autoincrement())
   orderId           Int
   order             TrackingOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  carrier           TrackingCarrier @default(SPX)
   trackingCode      String        @db.VarChar(128)
   trackingName      String?       @db.VarChar(255)
   status            String        @db.VarChar(512)
@@ -83,6 +91,7 @@ model TrackingHistory {
   createdAt         DateTime      @default(now())
 
   @@index([orderId])
+  @@index([carrier])
   @@index([eventTime])
 }
 
@@ -102,6 +111,7 @@ model User {
 
 model TrackingOrderActionLog {
   id              Int                       @id @default(autoincrement())
+  carrier         TrackingCarrier           @default(SPX)
   action          TrackingOrderActionType
   source          TrackingOrderActionSource
   trackingNumber  String                    @db.VarChar(64)
@@ -116,6 +126,7 @@ model TrackingOrderActionLog {
   createdAt       DateTime                  @default(now())
 
   @@index([action])
+  @@index([carrier])
   @@index([source])
   @@index([trackingNumber])
   @@index([telegramChatId])

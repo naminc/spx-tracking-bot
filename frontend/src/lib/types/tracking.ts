@@ -1,4 +1,5 @@
 export type FinalStatus = "PENDING" | "DELIVERED" | "FAILED" | "CANCELLED";
+export type TrackingCarrier = "SPX" | "GHN";
 
 export type TrackingUser = {
   id: number;
@@ -10,6 +11,7 @@ export type TrackingUser = {
 
 export type TrackingOrder = {
   id: number;
+  carrier: TrackingCarrier;
   trackingNumber: string;
   telegramChatId: string;
   userId: number | null;
@@ -31,6 +33,7 @@ export type TrackingOrder = {
 export type TrackingHistory = {
   id: number;
   orderId: number;
+  carrier: TrackingCarrier;
   trackingCode: string;
   trackingName: string | null;
   status: string;
@@ -45,6 +48,7 @@ export type TrackingHistory = {
   rawData: unknown;
   createdAt: string;
   order?: {
+    carrier: TrackingCarrier;
     trackingNumber: string;
     telegramChatId: string;
     userId: number | null;

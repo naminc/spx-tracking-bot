@@ -8,13 +8,15 @@ import {
 } from '../tracking-action-log/tracking-action-log.service';
 import type { FinalStatus } from './final-status';
 import { TrackingService, trackingService } from './tracking.service';
+import type { TrackingCarrier } from './tracking-carrier';
 
 export class TrackingController {
   constructor(private readonly service: TrackingService = trackingService) {}
 
   listOrders = async (request: Request, response: Response): Promise<void> => {
-    const { trackingNumber, telegramChatId, userId, telegramUserId, finalStatus, includeCompleted } =
+    const { carrier, trackingNumber, telegramChatId, userId, telegramUserId, finalStatus, includeCompleted } =
       request.query as unknown as {
+      carrier?: TrackingCarrier;
       trackingNumber?: string;
       telegramChatId?: string;
       userId?: number;
@@ -24,6 +26,7 @@ export class TrackingController {
     };
 
     const orders = await this.service.listOrders({
+      carrier,
       trackingNumber,
       telegramChatId,
       userId,
@@ -35,7 +38,8 @@ export class TrackingController {
   };
 
   listHistories = async (request: Request, response: Response): Promise<void> => {
-    const { trackingNumber, telegramChatId, userId, telegramUserId, limit } = request.query as unknown as {
+    const { carrier, trackingNumber, telegramChatId, userId, telegramUserId, limit } = request.query as unknown as {
+      carrier?: TrackingCarrier;
       trackingNumber?: string;
       telegramChatId?: string;
       userId?: number;
@@ -44,6 +48,7 @@ export class TrackingController {
     };
 
     const histories = await this.service.listHistories({
+      carrier,
       trackingNumber,
       telegramChatId,
       userId,
@@ -55,20 +60,23 @@ export class TrackingController {
 
   getOrder = async (request: Request, response: Response): Promise<void> => {
     const { trackingNumber } = request.params as { trackingNumber: string };
-    const order = await this.service.getOrder(trackingNumber);
+    const { carrier } = request.query as unknown as { carrier: TrackingCarrier | 'AUTO' };
+    const order = await this.service.getOrder(trackingNumber, carrier);
     response.json(successResponse('Lấy thông tin đơn hàng thành công', order));
   };
 
   createOrder = async (request: Request, response: Response): Promise<void> => {
-    const { trackingNumber, telegramChatId, note } = request.body as {
+    const { carrier, trackingNumber, telegramChatId, note } = request.body as {
+      carrier: TrackingCarrier | 'AUTO';
       trackingNumber: string;
       telegramChatId: string;
       note?: string | null;
     };
 
     const admin = authService.requireAdmin(request);
-    const result = await this.service.addOrder(trackingNumber, telegramChatId, note);
+    const result = await this.service.addOrder(trackingNumber, telegramChatId, note, carrier);
     await trackingOrderActionLogService.safeCreateLog({
+      carrier: result.order.carrier,
       action: TrackingOrderActionType.ADD,
       source: TrackingOrderActionSource.ADMIN,
       trackingNumber: result.order.trackingNumber,
@@ -79,6 +87,7 @@ export class TrackingController {
       adminUsername: admin.username,
       metadata: {
         via: 'admin_web',
+        carrier: result.order.carrier,
         alreadyExists: result.alreadyExists,
         note: result.order.note,
         noteUpdated: result.noteUpdated,
@@ -103,10 +112,14 @@ export class TrackingController {
 
   deleteOrder = async (request: Request, response: Response): Promise<void> => {
     const { trackingNumber } = request.params as { trackingNumber: string };
-    const { telegramChatId } = request.query as unknown as { telegramChatId: string };
+    const { carrier, telegramChatId } = request.query as unknown as {
+      carrier: TrackingCarrier | 'AUTO';
+      telegramChatId: string;
+    };
     const admin = authService.requireAdmin(request);
-    const deletedOrder = await this.service.removeOrder(trackingNumber, telegramChatId);
+    const deletedOrder = await this.service.removeOrder(trackingNumber, telegramChatId, carrier);
     await trackingOrderActionLogService.safeCreateLog({
+      carrier: deletedOrder.carrier,
       action: TrackingOrderActionType.REMOVE,
       source: TrackingOrderActionSource.ADMIN,
       trackingNumber: deletedOrder.trackingNumber,
@@ -116,6 +129,7 @@ export class TrackingController {
       adminUsername: admin.username,
       metadata: {
         via: 'admin_web',
+        carrier: deletedOrder.carrier,
         deletedOrderId: deletedOrder.id,
       },
     });
@@ -124,7 +138,8 @@ export class TrackingController {
 
   getHistories = async (request: Request, response: Response): Promise<void> => {
     const { trackingNumber } = request.params as { trackingNumber: string };
-    const histories = await this.service.getHistories(trackingNumber);
+    const { carrier } = request.query as unknown as { carrier: TrackingCarrier | 'AUTO' };
+    const histories = await this.service.getHistories(trackingNumber, carrier);
     response.json(successResponse('Lấy lịch sử đơn hàng thành công', histories));
   };
 }

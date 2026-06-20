@@ -1,7 +1,9 @@
 import axios, { AxiosError } from 'axios';
-import { env } from '../../config/env';
+import { trackingProviderConfig } from '../../config/tracking-providers';
 import { AppError } from '../../shared/errors/app-error';
 import { logger } from '../../shared/logger/logger';
+import { TrackingCarrier } from '../tracking/tracking-carrier';
+import type { NormalizedTrackingRecord } from '../tracking/tracking-record';
 
 export type SpxRecord = {
   tracking_code?: unknown;
@@ -23,20 +25,7 @@ type SpxApiResponse = {
   };
 };
 
-export type NormalizedSpxRecord = {
-  trackingCode: string;
-  trackingName?: string;
-  status: string;
-  location?: string;
-  nextLocation?: string;
-  description?: string;
-  buyerDescription?: string;
-  sellerDescription?: string;
-  milestoneCode?: string;
-  milestoneName?: string;
-  eventTime: Date;
-  rawData: SpxRecord;
-};
+export type NormalizedSpxRecord = NormalizedTrackingRecord;
 
 const toOptionalString = (value: unknown): string | undefined => {
   if (value === null || value === undefined) {
@@ -131,27 +120,22 @@ export class SpxService {
       throw new AppError('SPX did not return tracking records for this order', 404);
     }
 
-    return this.normalizeRecord(latestRecord);
+    return this.normalizeRecord(trackingNumber, latestRecord);
   }
 
   private async getTrackingRecords(trackingNumber: string): Promise<SpxRecord[]> {
-    const maxAttempts = 3;
+    const maxAttempts = trackingProviderConfig.spx.maxAttempts;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
-        const response = await axios.get<SpxApiResponse>(env.SPX_API_URL, {
+        const response = await axios.get<SpxApiResponse>(trackingProviderConfig.spx.apiUrl, {
           params: {
             spx_tn: trackingNumber,
-            language_code: env.SPX_LANGUAGE_CODE,
+            language_code: trackingProviderConfig.spx.languageCode,
           },
-          headers: {
-            accept: 'application/json, text/plain, */*',
-            'accept-language': 'vi,en-US;q=0.9,en;q=0.8',
-            referer: `https://spx.vn/track?${trackingNumber}`,
-            'user-agent': 'Mozilla/5.0',
-          },
-          timeout: 15_000,
+          headers: trackingProviderConfig.spx.buildHeaders(trackingNumber),
+          timeout: trackingProviderConfig.spx.requestTimeoutMs,
         });
 
         return response.data.data?.sls_tracking_info?.records ?? [];
@@ -169,7 +153,7 @@ export class SpxService {
     throw new AppError('Could not fetch order information from SPX', 502, lastError);
   }
 
-  private normalizeRecord(record: SpxRecord): NormalizedSpxRecord {
+  private normalizeRecord(trackingNumber: string, record: SpxRecord): NormalizedSpxRecord {
     const status = toRequiredString(record.buyer_description) || toRequiredString(record.description);
     const trackingCode = toRequiredString(record.tracking_code);
     const actualTime = toTimestampSeconds(record.actual_time);
@@ -179,6 +163,8 @@ export class SpxService {
     }
 
     return {
+      carrier: TrackingCarrier.SPX,
+      trackingNumber,
       trackingCode,
       trackingName: toOptionalString(record.tracking_name),
       status,

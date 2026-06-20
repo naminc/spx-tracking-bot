@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { FinalStatus, TrackingHistory, TrackingOrder, TrackingUser } from "../lib/types/tracking";
+import type {
+  FinalStatus,
+  TrackingCarrier,
+  TrackingHistory,
+  TrackingOrder,
+  TrackingUser,
+} from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
 import {
   useCreateTrackingOrder,
@@ -20,6 +26,8 @@ import { PaginatedTable } from "../components/ui/PaginatedTable";
 
 const maxOrderNoteLength = 512;
 type OrderStatusFilter = FinalStatus | "";
+type CarrierFilter = TrackingCarrier | "";
+type CarrierInput = TrackingCarrier | "AUTO";
 
 function optionalText(value: string | null | undefined) {
   return value && value.trim() ? value : "-";
@@ -38,8 +46,9 @@ function formatUser(user: TrackingUser | null | undefined) {
   return `${prefix} - ${user.telegramUserId}`;
 }
 
-function HistoryList({ trackingNumber }: { trackingNumber: string }) {
+function HistoryList({ carrier, trackingNumber }: { carrier: TrackingCarrier; trackingNumber: string }) {
   const { data = [], isLoading, error, refetch } = useTrackingHistories({
+    carrier,
     trackingNumber,
     limit: 100,
   });
@@ -84,10 +93,12 @@ function HistoryList({ trackingNumber }: { trackingNumber: string }) {
 }
 
 export function OrdersPage() {
+  const [carrierFilter, setCarrierFilter] = useState<CarrierFilter>("");
   const [chatFilter, setChatFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("");
   const [trackingFilterInput, setTrackingFilterInput] = useState("");
+  const [addCarrier, setAddCarrier] = useState<CarrierInput>("AUTO");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [selectedAddUserId, setSelectedAddUserId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
@@ -97,6 +108,7 @@ export function OrdersPage() {
   const normalizedChatFilter = chatFilter.trim();
   const { data = [], isLoading, isFetching, error, refetch } = useTrackingOrders({
     includeCompleted: true,
+    carrier: carrierFilter || undefined,
     trackingNumber: normalizedTrackingFilter || undefined,
     telegramChatId: normalizedChatFilter || undefined,
     userId: userFilter || undefined,
@@ -105,7 +117,7 @@ export function OrdersPage() {
   const usersQuery = useUsers();
   const createOrder = useCreateTrackingOrder();
   const deleteOrder = useDeleteTrackingOrder();
-  const tableResetKey = `${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}`;
+  const tableResetKey = `${carrierFilter}|${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}`;
 
   const stats = useMemo(
     () => ({
@@ -117,6 +129,11 @@ export function OrdersPage() {
   );
 
   const columns = [
+    {
+      key: "carrier",
+      header: "Carrier",
+      render: (order: TrackingOrder) => <Badge status={order.carrier} />,
+    },
     {
       key: "trackingNumber",
       header: "Tracking Number",
@@ -200,6 +217,7 @@ export function OrdersPage() {
             onClick={(event) => {
               event.stopPropagation();
               deleteOrder.mutate({
+                carrier: order.carrier,
                 trackingNumber: order.trackingNumber,
                 telegramChatId: order.telegramChatId,
               });
@@ -230,6 +248,7 @@ export function OrdersPage() {
     }
 
     const created = await createOrder.mutateAsync({
+      carrier: addCarrier,
       trackingNumber,
       telegramChatId: normalizedTelegramChatId,
       note: normalizedNote || undefined,
@@ -254,6 +273,7 @@ export function OrdersPage() {
   };
 
   const handleClearFilter = () => {
+    setCarrierFilter("");
     setTrackingFilterInput("");
     setChatFilter("");
     setUserFilter("");
@@ -291,11 +311,26 @@ export function OrdersPage() {
 
       <form
         onSubmit={handleCreate}
-        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1.1fr_220px_1fr_auto]"
+        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[160px_1fr_1.1fr_220px_1fr_auto]"
       >
+        <div>
+          <label htmlFor="add-carrier" className="mb-1 block text-sm font-medium text-gray-700">
+            Carrier
+          </label>
+          <select
+            id="add-carrier"
+            value={addCarrier}
+            onChange={(event) => setAddCarrier(event.target.value as CarrierInput)}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="AUTO">Auto</option>
+            <option value="SPX">SPX</option>
+            <option value="GHN">GHN</option>
+          </select>
+        </div>
         <Input
           label="Tracking Number"
-          placeholder="SPXVN063015366786"
+          placeholder="SPXVN063015366786 or GYH9PRA6"
           value={trackingNumber}
           onChange={(event) => setTrackingNumber(event.target.value)}
           required
@@ -328,12 +363,27 @@ export function OrdersPage() {
         </div>
       </form>
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1fr_1.4fr_180px_auto] md:items-end">
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_1fr_1fr_1.4fr_180px_auto] md:items-end">
+        <div>
+          <label htmlFor="order-carrier-filter" className="mb-1 block text-sm font-medium text-gray-700">
+            Carrier
+          </label>
+          <select
+            id="order-carrier-filter"
+            value={carrierFilter}
+            onChange={(event) => setCarrierFilter(event.target.value as CarrierFilter)}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">All carriers</option>
+            <option value="SPX">SPX</option>
+            <option value="GHN">GHN</option>
+          </select>
+        </div>
         <Input
           label="Tracking Number"
           value={trackingFilterInput}
           onChange={(event) => setTrackingFilterInput(event.target.value)}
-          placeholder="SPXVN063015366786"
+          placeholder="SPXVN063015366786 or GYH9PRA6"
         />
         <Input
           label="Chat ID"
@@ -395,10 +445,12 @@ export function OrdersPage() {
       <Modal
         open={Boolean(historyOrder)}
         onClose={() => setHistoryOrder(null)}
-        title={historyOrder ? `History ${historyOrder.trackingNumber}` : "History"}
+        title={historyOrder ? `History ${historyOrder.carrier} ${historyOrder.trackingNumber}` : "History"}
         size="lg"
       >
-        {historyOrder && <HistoryList trackingNumber={historyOrder.trackingNumber} />}
+        {historyOrder && (
+          <HistoryList carrier={historyOrder.carrier} trackingNumber={historyOrder.trackingNumber} />
+        )}
       </Modal>
     </div>
   );

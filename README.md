@@ -30,6 +30,27 @@ TELEGRAM_POLLING_TIMEOUT_SECONDS=25
 ADMIN_TELEGRAM_ADMINS=6142403832:naminc
 ADMIN_JWT_SECRET=change-this-admin-jwt-secret
 ADMIN_JWT_EXPIRES_IN_SECONDS=604800
+TRACKING_CHECK_INTERVAL_MINUTES=5
+GHN_TRACKING_LOGS_URL=https://fe-online-gateway.ghn.vn/order-tracking/public-api/client/tracking-logs
+```
+
+## Tracking Provider Config
+
+SPX and GHN provider HTTP settings are centralized in `src/config/tracking-providers.ts` and read from env.
+
+Common production overrides:
+
+```env
+SPX_API_URL=https://spx.vn/shipment/order/open/order/get_order_info
+SPX_LANGUAGE_CODE=vi
+SPX_REQUEST_TIMEOUT_MS=15000
+TRACKING_CHECK_INTERVAL_MINUTES=5
+TRACKING_HTTP_USER_AGENT=Mozilla/5.0
+
+GHN_TRACKING_LOGS_URL=https://fe-online-gateway.ghn.vn/order-tracking/public-api/client/tracking-logs
+GHN_TRACKING_ORIGIN=https://donhang.ghn.vn
+GHN_TRACKING_REFERER=https://donhang.ghn.vn/
+GHN_REQUEST_TIMEOUT_MS=15000
 ```
 
 ## Frontend API URL
@@ -97,8 +118,10 @@ Create request:
 
 ```json
 {
+  "carrier": "AUTO",
   "trackingNumber": "SPXVN063015366786",
-  "telegramChatId": "api"
+  "telegramChatId": "api",
+  "note": "Optional note"
 }
 ```
 
@@ -147,15 +170,19 @@ POST /telegram/webhook
 Commands:
 
 - `/start`
+- `/help`
 - `/add SPXVNxxxx`
+- `/add GYH9PRA6 optional note`
 - `/list`
 - `/remove SPXVNxxxx`
+- `/remove GYH9PRA6`
+- `/carriers`
 - `/contact`
 
 The bot uses Telegram long polling by default, so local development does not need a public webhook URL.
 
 ## Scheduler
 
-The scheduler runs every `SPX_CHECK_INTERVAL_MINUTES` minutes, defaults to `5`, and checks all orders with `isCompleted = false`.
+The scheduler runs every `TRACKING_CHECK_INTERVAL_MINUTES` minutes, defaults to `5`, and checks all orders with `isCompleted = false`. `SPX_CHECK_INTERVAL_MINUTES` is still accepted only as a legacy fallback for old deployments.
 
 When the latest `tracking_code + actual_time` changes, the app updates `TrackingOrder`, inserts `TrackingHistory`, and sends a Telegram notification. Delivered, failed, and cancelled orders are marked completed and no longer tracked.

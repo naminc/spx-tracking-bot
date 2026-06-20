@@ -14,6 +14,7 @@ import type {
   TrackingOrderActionSource,
   TrackingOrderActionType,
 } from "../lib/types/tracking-action-log";
+import type { TrackingCarrier } from "../lib/types/tracking";
 import type { User } from "../lib/types/user";
 
 function optionalText(value: string | null | undefined) {
@@ -50,6 +51,7 @@ function formatMetadata(metadata: unknown) {
 }
 
 export function TrackingActionLogsPage() {
+  const [carrierInput, setCarrierInput] = useState<TrackingCarrier | "">("");
   const [actionInput, setActionInput] = useState<TrackingOrderActionType | "">("");
   const [sourceInput, setSourceInput] = useState<TrackingOrderActionSource | "">("");
   const [trackingInput, setTrackingInput] = useState("");
@@ -59,6 +61,7 @@ export function TrackingActionLogsPage() {
   const normalizedChatId = chatInput.trim();
 
   const logsQuery = useTrackingActionLogs({
+    carrier: carrierInput,
     action: actionInput,
     source: sourceInput,
     trackingNumber: normalizedTrackingNumber || undefined,
@@ -68,6 +71,7 @@ export function TrackingActionLogsPage() {
   const usersQuery = useUsers();
   const logs = logsQuery.data ?? [];
   const tableResetKey = [
+    carrierInput,
     actionInput,
     sourceInput,
     normalizedTrackingNumber,
@@ -80,6 +84,11 @@ export function TrackingActionLogsPage() {
       key: "createdAt",
       header: "Time",
       render: (log: TrackingOrderActionLog) => formatDate(log.createdAt),
+    },
+    {
+      key: "carrier",
+      header: "Carrier",
+      render: (log: TrackingOrderActionLog) => <Badge status={log.carrier} />,
     },
     {
       key: "action",
@@ -130,6 +139,7 @@ export function TrackingActionLogsPage() {
   ];
 
   const handleClear = () => {
+    setCarrierInput("");
     setActionInput("");
     setSourceInput("");
     setTrackingInput("");
@@ -150,7 +160,22 @@ export function TrackingActionLogsPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Action Logs</h1>
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[160px_160px_1fr_1fr_1.4fr_auto] md:items-end">
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_160px_160px_1fr_1fr_1.4fr_auto] md:items-end">
+        <div>
+          <label htmlFor="action-log-carrier-filter" className="mb-1 block text-sm font-medium text-gray-700">
+            Carrier
+          </label>
+          <select
+            id="action-log-carrier-filter"
+            value={carrierInput}
+            onChange={(event) => setCarrierInput(event.target.value as TrackingCarrier | "")}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">All carriers</option>
+            <option value="SPX">SPX</option>
+            <option value="GHN">GHN</option>
+          </select>
+        </div>
         <div>
           <label htmlFor="action-filter" className="mb-1 block text-sm font-medium text-gray-700">
             Action
@@ -185,7 +210,7 @@ export function TrackingActionLogsPage() {
           label="Tracking Number"
           value={trackingInput}
           onChange={(event) => setTrackingInput(event.target.value)}
-          placeholder="SPXVN063015366786"
+          placeholder="SPXVN063015366786 or GYH9PRA6"
         />
         <Input
           label="Telegram Chat ID"

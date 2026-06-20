@@ -18,7 +18,17 @@ const envSchema = z.object({
     .url()
     .default('https://spx.vn/shipment/order/open/order/get_order_info'),
   SPX_LANGUAGE_CODE: z.string().min(2).default('vi'),
-  SPX_CHECK_INTERVAL_MINUTES: z.coerce.number().int().positive().default(5),
+  SPX_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  SPX_CHECK_INTERVAL_MINUTES: z.coerce.number().int().positive().optional(),
+  TRACKING_CHECK_INTERVAL_MINUTES: z.coerce.number().int().positive().optional(),
+  TRACKING_HTTP_USER_AGENT: z.string().trim().min(1).default('Mozilla/5.0'),
+  GHN_TRACKING_LOGS_URL: z
+    .string()
+    .url()
+    .default('https://fe-online-gateway.ghn.vn/order-tracking/public-api/client/tracking-logs'),
+  GHN_TRACKING_ORIGIN: z.string().url().default('https://donhang.ghn.vn'),
+  GHN_TRACKING_REFERER: z.string().url().default('https://donhang.ghn.vn/'),
+  GHN_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   DELIVERED_KEYWORDS: z.string().default('Giao hàng thành công,Delivered'),
   FAILED_KEYWORDS: z
     .string()
@@ -44,6 +54,8 @@ const splitKeywords = (value: string): string[] =>
 
 export const env = {
   ...parsedEnv.data,
+  TRACKING_CHECK_INTERVAL_MINUTES:
+    parsedEnv.data.TRACKING_CHECK_INTERVAL_MINUTES ?? parsedEnv.data.SPX_CHECK_INTERVAL_MINUTES ?? 5,
   DELIVERED_KEYWORDS: splitKeywords(parsedEnv.data.DELIVERED_KEYWORDS),
   FAILED_KEYWORDS: splitKeywords(parsedEnv.data.FAILED_KEYWORDS),
   CANCELLED_KEYWORDS: splitKeywords(parsedEnv.data.CANCELLED_KEYWORDS),

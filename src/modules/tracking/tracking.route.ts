@@ -8,6 +8,7 @@ import {
   listHistoriesQuerySchema,
   listOrdersQuerySchema,
   removeOrderQuerySchema,
+  trackingCarrierQuerySchema,
   trackingNumberParamsSchema,
 } from './tracking.schema';
 
@@ -27,7 +28,7 @@ trackingRouter.get(
 
 trackingRouter.get(
   '/:trackingNumber',
-  validateRequest({ params: trackingNumberParamsSchema }),
+  validateRequest({ params: trackingNumberParamsSchema, query: trackingCarrierQuerySchema }),
   asyncHandler(trackingController.getOrder),
 );
 
@@ -47,6 +48,6 @@ trackingRouter.delete(
 
 trackingRouter.get(
   '/:trackingNumber/histories',
-  validateRequest({ params: trackingNumberParamsSchema }),
+  validateRequest({ params: trackingNumberParamsSchema, query: trackingCarrierQuerySchema }),
   asyncHandler(trackingController.getHistories),
 );

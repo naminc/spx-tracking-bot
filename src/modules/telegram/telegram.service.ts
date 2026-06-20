@@ -77,6 +77,16 @@ export class TelegramService {
       return;
     }
 
+    if (command === '/help') {
+      await this.sendMessage(chatId, telegramMessageBuilder.help());
+      return;
+    }
+
+    if (command === '/carriers' || command === '/carrier') {
+      await this.sendMessage(chatId, telegramMessageBuilder.supportedCarriers());
+      return;
+    }
+
     if (command === '/add') {
       await this.handleAdd(chatId, text);
       return;
@@ -98,7 +108,7 @@ export class TelegramService {
       return;
     }
 
-    if (/^SPXVN[A-Z0-9]+$/i.test(text)) {
+    if (trackingNumberSchema.safeParse(text).success) {
       await this.sendMessage(chatId, telegramMessageBuilder.directTrackingNumberNotAllowed(text));
       return;
     }
@@ -388,6 +398,7 @@ export class TelegramService {
       if (alreadyExists) {
         const result = await this.service.addOrder(parsed.data, chatId, note);
         await trackingOrderActionLogService.safeCreateLog({
+          carrier: result.order.carrier,
           action: TrackingOrderActionType.ADD,
           source: TrackingOrderActionSource.TELEGRAM,
           trackingNumber: result.order.trackingNumber,
@@ -395,6 +406,7 @@ export class TelegramService {
           userId: result.order.userId,
           orderId: result.order.id,
           metadata: {
+            carrier: result.order.carrier,
             alreadyExists: true,
             note: note ?? null,
             noteUpdated: result.noteUpdated,
@@ -407,6 +419,7 @@ export class TelegramService {
       await this.sendMessage(chatId, telegramMessageBuilder.checking(parsed.data));
       const result = await this.service.addOrder(parsed.data, chatId, note);
       await trackingOrderActionLogService.safeCreateLog({
+        carrier: result.order.carrier,
         action: TrackingOrderActionType.ADD,
         source: TrackingOrderActionSource.TELEGRAM,
         trackingNumber: result.order.trackingNumber,
@@ -414,6 +427,7 @@ export class TelegramService {
         userId: result.order.userId,
         orderId: result.order.id,
         metadata: {
+          carrier: result.order.carrier,
           alreadyExists: false,
           note: note ?? null,
         },
@@ -422,6 +436,7 @@ export class TelegramService {
 
       if (result.order.finalStatus !== FinalStatus.PENDING) {
         await this.sendTrackingNotification({
+          carrier: result.order.carrier,
           chatId,
           trackingNumber: result.order.trackingNumber,
           status: result.order.currentStatus,
@@ -458,16 +473,21 @@ export class TelegramService {
     try {
       const deletedOrder = await this.service.removeOrder(parsed.data, chatId);
       await trackingOrderActionLogService.safeCreateLog({
+        carrier: deletedOrder.carrier,
         action: TrackingOrderActionType.REMOVE,
         source: TrackingOrderActionSource.TELEGRAM,
         trackingNumber: deletedOrder.trackingNumber,
         telegramChatId: chatId,
         userId: deletedOrder.userId,
         metadata: {
+          carrier: deletedOrder.carrier,
           deletedOrderId: deletedOrder.id,
         },
       });
-      await this.sendMessage(chatId, telegramMessageBuilder.removeSuccess(parsed.data));
+      await this.sendMessage(
+        chatId,
+        telegramMessageBuilder.removeSuccess(parsed.data, deletedOrder.carrier),
+      );
     } catch (error) {
       logger.error({ err: error, chatId, rawTrackingNumber }, 'Failed to remove Telegram tracking order');
       await this.sendMessage(chatId, telegramMessageBuilder.invalidTrackingNumber());

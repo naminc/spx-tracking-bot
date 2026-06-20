@@ -41,6 +41,7 @@ export class TrackingOrderActionLogService {
       logger.error(
         {
           err: error,
+          carrier: input.carrier,
           action: input.action,
           source: input.source,
           trackingNumber: input.trackingNumber,

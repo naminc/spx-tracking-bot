@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import type { TrackingHistory, TrackingUser } from "../lib/types/tracking";
+import type { TrackingCarrier, TrackingHistory, TrackingUser } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
 import { useTrackingHistories } from "../hooks/useTracking";
 import { useUsers } from "../hooks/useUsers";
@@ -31,9 +31,13 @@ function formatUser(user: TrackingUser | null | undefined) {
 
 export function TrackingHistoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const rawInitialCarrier = searchParams.get("carrier")?.trim().toUpperCase();
+  const initialCarrier: TrackingCarrier | "" =
+    rawInitialCarrier === "SPX" || rawInitialCarrier === "GHN" ? rawInitialCarrier : "";
   const initialTrackingNumber = searchParams.get("trackingNumber")?.trim().toUpperCase() ?? "";
   const initialChatId = searchParams.get("telegramChatId")?.trim() ?? "";
   const initialUserId = searchParams.get("userId")?.trim() ?? "";
+  const [carrierInput, setCarrierInput] = useState<TrackingCarrier | "">(initialCarrier);
   const [trackingInput, setTrackingInput] = useState(initialTrackingNumber);
   const [chatInput, setChatInput] = useState(initialChatId);
   const [userInput, setUserInput] = useState(initialUserId);
@@ -42,20 +46,26 @@ export function TrackingHistoryPage() {
   const normalizedChatId = chatInput.trim();
   const normalizedUserId = userInput.trim();
   const { data = [], isLoading, isFetching, error, refetch } = useTrackingHistories({
+    carrier: carrierInput || undefined,
     trackingNumber: normalizedTrackingNumber || undefined,
     telegramChatId: normalizedChatId || undefined,
     userId: normalizedUserId || undefined,
   });
   const usersQuery = useUsers();
-  const tableResetKey = `${normalizedTrackingNumber}|${normalizedChatId}|${normalizedUserId}`;
+  const tableResetKey = `${carrierInput}|${normalizedTrackingNumber}|${normalizedChatId}|${normalizedUserId}`;
 
   useEffect(() => {
     const nextFilters = {
+      carrier: carrierInput,
       trackingNumber: normalizedTrackingNumber,
       telegramChatId: normalizedChatId,
       userId: normalizedUserId,
     };
     const nextSearchParams = new URLSearchParams();
+
+    if (nextFilters.carrier) {
+      nextSearchParams.set("carrier", nextFilters.carrier);
+    }
 
     if (nextFilters.trackingNumber) {
       nextSearchParams.set("trackingNumber", nextFilters.trackingNumber);
@@ -70,9 +80,14 @@ export function TrackingHistoryPage() {
     }
 
     setSearchParams(nextSearchParams, { replace: true });
-  }, [normalizedChatId, normalizedTrackingNumber, normalizedUserId, setSearchParams]);
+  }, [carrierInput, normalizedChatId, normalizedTrackingNumber, normalizedUserId, setSearchParams]);
 
   const columns = [
+    {
+      key: "carrier",
+      header: "Carrier",
+      render: (history: TrackingHistory) => history.carrier,
+    },
     {
       key: "trackingNumber",
       header: "Tracking Number",
@@ -125,6 +140,7 @@ export function TrackingHistoryPage() {
   ];
 
   const handleClear = () => {
+    setCarrierInput("");
     setTrackingInput("");
     setChatInput("");
     setUserInput("");
@@ -144,10 +160,25 @@ export function TrackingHistoryPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Tracking History</h1>
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[1fr_1fr_1.4fr_auto] md:items-end">
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_1fr_1fr_1.4fr_auto] md:items-end">
+        <div>
+          <label htmlFor="history-carrier-filter" className="mb-1 block text-sm font-medium text-gray-700">
+            Carrier
+          </label>
+          <select
+            id="history-carrier-filter"
+            value={carrierInput}
+            onChange={(event) => setCarrierInput(event.target.value as TrackingCarrier | "")}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">All carriers</option>
+            <option value="SPX">SPX</option>
+            <option value="GHN">GHN</option>
+          </select>
+        </div>
         <Input
           label="Tracking Number"
-          placeholder="SPXVN063015366786"
+          placeholder="SPXVN063015366786 or GYH9PRA6"
           value={trackingInput}
           onChange={(event) => setTrackingInput(event.target.value)}
         />
@@ -204,6 +235,10 @@ export function TrackingHistoryPage() {
               <div>
                 <dt className="text-gray-500">Tracking Number</dt>
                 <dd className="font-mono text-gray-900">{selectedHistory.order?.trackingNumber ?? "-"}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Carrier</dt>
+                <dd className="text-gray-900">{selectedHistory.carrier}</dd>
               </div>
               <div>
                 <dt className="text-gray-500">Note</dt>

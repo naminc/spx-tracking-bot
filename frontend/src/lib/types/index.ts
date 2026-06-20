@@ -17,5 +17,5 @@ export type {
   TrackingOrderActionSource,
   TrackingOrderActionType,
 } from "./tracking-action-log";
-export type { FinalStatus, TrackingHistory, TrackingOrder } from "./tracking";
+export type { FinalStatus, TrackingCarrier, TrackingHistory, TrackingOrder } from "./tracking";
 export type { User } from "./user";

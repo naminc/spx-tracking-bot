@@ -8,11 +8,11 @@ export const startTrackingScheduler = (
   telegramService: TelegramService,
   service: TrackingService = trackingService,
 ): void => {
-  const interval = env.SPX_CHECK_INTERVAL_MINUTES;
+  const interval = env.TRACKING_CHECK_INTERVAL_MINUTES;
   const cronExpression = `*/${interval} * * * *`;
 
   cron.schedule(cronExpression, async () => {
-    logger.info({ cronExpression }, 'Checking active SPX tracking orders');
+    logger.info({ cronExpression }, 'Checking active tracking orders');
     const notifications = await service.checkActiveOrders();
 
     for (const notification of notifications) {
@@ -20,5 +20,5 @@ export const startTrackingScheduler = (
     }
   });
 
-  logger.info({ cronExpression }, 'SPX tracking scheduler started');
+  logger.info({ cronExpression }, 'Tracking scheduler started');
 };

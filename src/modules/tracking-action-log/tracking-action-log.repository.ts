@@ -4,6 +4,7 @@ import {
   type Prisma,
 } from '@prisma/client';
 import { prisma } from '../../shared/prisma/client';
+import type { TrackingCarrier } from '../tracking/tracking-carrier';
 
 const userSelect = {
   id: true,
@@ -15,6 +16,7 @@ const userSelect = {
 
 const orderSelect = {
   id: true,
+  carrier: true,
   trackingNumber: true,
   telegramChatId: true,
   userId: true,
@@ -30,6 +32,7 @@ export type TrackingOrderActionLogEntity = Prisma.TrackingOrderActionLogGetPaylo
 }>;
 
 export type CreateTrackingOrderActionLogInput = {
+  carrier: TrackingCarrier;
   action: TrackingOrderActionType;
   source: TrackingOrderActionSource;
   trackingNumber: string;
@@ -42,6 +45,7 @@ export type CreateTrackingOrderActionLogInput = {
 };
 
 export type FindTrackingOrderActionLogsFilters = {
+  carrier?: TrackingCarrier;
   action?: TrackingOrderActionType;
   source?: TrackingOrderActionSource;
   trackingNumber?: string;
@@ -56,6 +60,7 @@ export class TrackingOrderActionLogRepository {
   ): Promise<TrackingOrderActionLogEntity> {
     return prisma.trackingOrderActionLog.create({
       data: {
+        carrier: input.carrier,
         action: input.action,
         source: input.source,
         trackingNumber: input.trackingNumber,
@@ -74,6 +79,7 @@ export class TrackingOrderActionLogRepository {
     filters: FindTrackingOrderActionLogsFilters = {},
   ): Promise<TrackingOrderActionLogEntity[]> {
     const where: Prisma.TrackingOrderActionLogWhereInput = {
+      carrier: filters.carrier,
       action: filters.action,
       source: filters.source,
       trackingNumber: filters.trackingNumber

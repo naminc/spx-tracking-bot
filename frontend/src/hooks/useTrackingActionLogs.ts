@@ -24,6 +24,7 @@ export function useTrackingActionLogs(filters: TrackingOrderActionLogFilters = {
     queryFn: () =>
       apiClient.get(
         `/admin/tracking-action-logs${toQueryString({
+          carrier: filters.carrier,
           action: filters.action,
           source: filters.source,
           trackingNumber: filters.trackingNumber?.trim(),

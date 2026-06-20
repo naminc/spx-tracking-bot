@@ -1,13 +1,29 @@
 import { z } from 'zod';
 import { FinalStatus } from './final-status';
+import {
+  TrackingCarrier,
+  detectTrackingCarrier,
+  normalizeTrackingNumber,
+} from './tracking-carrier';
 
 export const MAX_ORDER_NOTE_LENGTH = 512;
+
+export const trackingCarrierSchema = z.enum([TrackingCarrier.SPX, TrackingCarrier.GHN]);
+
+export const trackingCarrierHintSchema = z
+  .enum(['AUTO', TrackingCarrier.SPX, TrackingCarrier.GHN])
+  .optional()
+  .default('AUTO');
 
 export const trackingNumberSchema = z
   .string()
   .trim()
-  .regex(/^SPXVN[A-Z0-9]{6,40}$/i, 'Tracking number must look like SPXVN063015366786')
-  .transform((value) => value.toUpperCase());
+  .min(6, 'Tracking number is too short')
+  .max(64, 'Tracking number is too long')
+  .transform(normalizeTrackingNumber)
+  .refine((value) => detectTrackingCarrier(value) !== null, {
+    message: 'Tracking number must be a valid SPX or GHN code',
+  });
 
 export const trackingNumberFilterSchema = z
   .string()
@@ -24,6 +40,7 @@ export const orderNoteSchema = z
 
 export const createTrackingOrderSchema = z.object({
   trackingNumber: trackingNumberSchema,
+  carrier: trackingCarrierHintSchema,
   telegramChatId: z.string().trim().min(1).max(64).optional().default('api'),
   note: orderNoteSchema.optional(),
 });
@@ -33,6 +50,7 @@ export const trackingNumberParamsSchema = z.object({
 });
 
 export const listOrdersQuerySchema = z.object({
+  carrier: trackingCarrierSchema.optional(),
   trackingNumber: trackingNumberFilterSchema.optional(),
   telegramChatId: z.string().trim().min(1).max(64).optional(),
   userId: z.coerce.number().int().positive().optional(),
@@ -52,6 +70,7 @@ export const listOrdersQuerySchema = z.object({
 });
 
 export const listHistoriesQuerySchema = z.object({
+  carrier: trackingCarrierSchema.optional(),
   trackingNumber: trackingNumberFilterSchema.optional(),
   telegramChatId: z.string().trim().min(1).max(64).optional(),
   userId: z.coerce.number().int().positive().optional(),
@@ -60,5 +79,10 @@ export const listHistoriesQuerySchema = z.object({
 });
 
 export const removeOrderQuerySchema = z.object({
+  carrier: trackingCarrierHintSchema,
   telegramChatId: z.string().trim().min(1).max(64).optional().default('api'),
+});
+
+export const trackingCarrierQuerySchema = z.object({
+  carrier: trackingCarrierHintSchema,
 });

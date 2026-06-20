@@ -22,4 +22,6 @@ export const statusMap: Record<string, StatusConfig> = {
   REMOVE: { color: "bg-red-100 text-red-800", label: "Remove" },
   TELEGRAM: { color: "bg-sky-100 text-sky-800", label: "Telegram" },
   ADMIN: { color: "bg-indigo-100 text-indigo-800", label: "Admin" },
+  SPX: { color: "bg-orange-100 text-orange-800", label: "SPX" },
+  GHN: { color: "bg-emerald-100 text-emerald-800", label: "GHN" },
 };

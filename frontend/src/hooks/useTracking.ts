@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "../lib/api/client";
-import type { FinalStatus, TrackingHistory, TrackingOrder } from "../lib/types/tracking";
+import type { FinalStatus, TrackingCarrier, TrackingHistory, TrackingOrder } from "../lib/types/tracking";
 
 type OrderFilters = {
   includeCompleted: boolean;
+  carrier?: TrackingCarrier | "";
   trackingNumber?: string;
   telegramChatId?: string;
   userId?: string;
@@ -13,6 +14,7 @@ type OrderFilters = {
 };
 
 type HistoryFilters = {
+  carrier?: TrackingCarrier | "";
   trackingNumber?: string;
   telegramChatId?: string;
   userId?: string;
@@ -46,6 +48,7 @@ export function useTrackingOrders(filters: OrderFilters) {
       apiClient.get(
         `/orders${toQueryString({
           includeCompleted: filters.includeCompleted,
+          carrier: filters.carrier,
           trackingNumber: filters.trackingNumber?.trim(),
           telegramChatId: filters.telegramChatId?.trim(),
           userId: filters.userId?.trim(),
@@ -60,7 +63,12 @@ export function useCreateTrackingOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { trackingNumber: string; telegramChatId?: string; note?: string }) =>
+    mutationFn: (input: {
+      carrier?: TrackingCarrier | "AUTO";
+      trackingNumber: string;
+      telegramChatId?: string;
+      note?: string;
+    }) =>
       apiClient.post<CreateTrackingOrderResult>("/orders", input),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
@@ -85,9 +93,12 @@ export function useDeleteTrackingOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { trackingNumber: string; telegramChatId: string }) =>
+    mutationFn: (input: { carrier?: TrackingCarrier | "AUTO"; trackingNumber: string; telegramChatId: string }) =>
       apiClient.delete<TrackingOrder>(
-        `/orders/${input.trackingNumber}${toQueryString({ telegramChatId: input.telegramChatId })}`,
+        `/orders/${input.trackingNumber}${toQueryString({
+          carrier: input.carrier,
+          telegramChatId: input.telegramChatId,
+        })}`,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
@@ -104,6 +115,7 @@ export function useTrackingHistories(filters: HistoryFilters = {}) {
     queryFn: () =>
       apiClient.get(
         `/orders/histories${toQueryString({
+          carrier: filters.carrier,
           trackingNumber: filters.trackingNumber?.trim(),
           telegramChatId: filters.telegramChatId?.trim(),
           userId: filters.userId?.trim(),

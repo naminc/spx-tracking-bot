@@ -46,7 +46,6 @@ const contactCommandIcon = '<tg-emoji emoji-id="5443038326535759644">☎️</tg-
 const addCommandIcon = '<tg-emoji emoji-id="5305460950562777340">➕</tg-emoji>';
 const startCommandIcon = '<tg-emoji emoji-id="6203791465471022369">ℹ️</tg-emoji>';
 const listCommandIcon = '<tg-emoji emoji-id="5265132878395621818">📋</tg-emoji>';
-const pingCommandIcon = '<tg-emoji emoji-id="5213260226194583825">📌</tg-emoji>';
 const truckCommandIcon = '<tg-emoji emoji-id="6314504740130525114">🚚</tg-emoji>';
 const helloCommandIcon = '<tg-emoji emoji-id="6143364153244390082">👋</tg-emoji>';
 const exampleCommandIcon = '<tg-emoji emoji-id="6138429248706188838">🧾</tg-emoji>';

@@ -5,6 +5,7 @@ import pinoHttp from 'pino-http';
 import { requireAdminAuth } from './modules/admin/auth/auth.middleware';
 import { authRouter } from './modules/admin/auth/auth.route';
 import { broadcastRouter } from './modules/admin/broadcast/broadcast.route';
+import { dashboardRouter } from './modules/admin/dashboard/dashboard.route';
 import { settingRouter } from './modules/admin/setting/setting.route';
 import { userRouter } from './modules/admin/user/user.route';
 import { telegramRouter } from './modules/telegram/telegram.route';
@@ -28,6 +29,7 @@ app.get('/health', (_request, response) => {
 });
 
 app.use('/api/admin/auth', authRouter);
+app.use('/api/admin/dashboard', requireAdminAuth, dashboardRouter);
 app.use('/api/admin/settings', requireAdminAuth, settingRouter);
 app.use('/api/orders', requireAdminAuth, trackingRouter);
 app.use('/api/admin/users', requireAdminAuth, userRouter);

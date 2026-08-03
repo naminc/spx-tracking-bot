@@ -1,9 +1,7 @@
 import { Link } from "react-router-dom";
 import type { TrackingHistory, TrackingOrder } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
-import { useTrackingHistories, useTrackingOrders } from "../hooks/useTracking";
-import { useSettings } from "../hooks/useSettings";
-import { useUsers } from "../hooks/useUsers";
+import { useDashboard } from "../hooks/useDashboard";
 import { Badge } from "../components/ui/Badge";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
@@ -18,26 +16,12 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function countByFinalStatus(orders: TrackingOrder[]) {
-  return orders.reduce<Record<string, number>>((result, order) => {
-    result[order.finalStatus] = (result[order.finalStatus] ?? 0) + 1;
-    return result;
-  }, {});
-}
-
 export function DashboardPage() {
-  const ordersQuery = useTrackingOrders({ includeCompleted: true });
-  const historiesQuery = useTrackingHistories();
-  const usersQuery = useUsers();
-  const settingsQuery = useSettings();
-
-  const isLoading = ordersQuery.isLoading || historiesQuery.isLoading || usersQuery.isLoading || settingsQuery.isLoading;
-  const error = ordersQuery.error || historiesQuery.error || usersQuery.error || settingsQuery.error;
-  const orders = ordersQuery.data ?? [];
-  const histories = historiesQuery.data ?? [];
-  const users = usersQuery.data ?? [];
-  const settings = settingsQuery.data;
-  const statusCounts = countByFinalStatus(orders);
+  const dashboardQuery = useDashboard();
+  const dashboard = dashboardQuery.data;
+  const orders = dashboard?.recentOrders ?? [];
+  const histories = dashboard?.recentHistories ?? [];
+  const statusCounts = dashboard?.statusCounts;
 
   const recentOrderColumns = [
     {
@@ -84,17 +68,12 @@ export function DashboardPage() {
     },
   ];
 
-  if (isLoading) return null;
-  if (error) {
+  if (dashboardQuery.isLoading) return null;
+  if (dashboardQuery.error) {
     return (
       <ErrorState
-        message={(error as Error).message}
-        onRetry={() => {
-          ordersQuery.refetch();
-          historiesQuery.refetch();
-          usersQuery.refetch();
-          settingsQuery.refetch();
-        }}
+        message={(dashboardQuery.error as Error).message}
+        onRetry={() => dashboardQuery.refetch()}
       />
     );
   }
@@ -114,12 +93,12 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <StatCard label="Orders" value={orders.length} />
-        <StatCard label="Active Orders" value={orders.filter((order) => !order.isCompleted).length} />
-        <StatCard label="Completed Orders" value={orders.filter((order) => order.isCompleted).length} />
-        <StatCard label="Tracking Events" value={histories.length} />
-        <StatCard label="Telegram Users" value={users.length} />
-        <StatCard label="Maintenance" value={settings?.maintenanceEnabled ? "On" : "Off"} />
+        <StatCard label="Orders" value={dashboard?.stats.orders.total ?? 0} />
+        <StatCard label="Active Orders" value={dashboard?.stats.orders.active ?? 0} />
+        <StatCard label="Completed Orders" value={dashboard?.stats.orders.completed ?? 0} />
+        <StatCard label="Tracking Events" value={dashboard?.stats.trackingEvents ?? 0} />
+        <StatCard label="Telegram Users" value={dashboard?.stats.telegramUsers ?? 0} />
+        <StatCard label="Maintenance" value={dashboard?.stats.maintenanceEnabled ? "On" : "Off"} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -127,7 +106,7 @@ export function DashboardPage() {
           <div key={status} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <Badge status={status} />
-              <span className="text-xl font-semibold text-gray-900">{statusCounts[status] ?? 0}</span>
+              <span className="text-xl font-semibold text-gray-900">{statusCounts?.[status] ?? 0}</span>
             </div>
           </div>
         ))}

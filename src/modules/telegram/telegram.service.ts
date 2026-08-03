@@ -9,7 +9,7 @@ import {
   trackingService,
 } from '../tracking/tracking.service';
 import { SettingService, settingService } from '../admin/setting/setting.service';
-import { UserRepository, userRepository } from '../admin/user/user.repository';
+import { UserRepository, userRepository, type UserEntity } from '../admin/user/user.repository';
 import {
   TrackingOrderActionSource,
   TrackingOrderActionType,
@@ -62,7 +62,7 @@ export class TelegramService {
       return;
     }
 
-    await this.recordTelegramUserFromMessage(message);
+    const telegramUser = await this.recordTelegramUserFromMessage(message);
 
     if (!message.text) {
       return;
@@ -71,6 +71,12 @@ export class TelegramService {
     const chatId = String(message.chat.id);
     const text = message.text.trim();
     const command = text.split(/\s+/)[0].split('@')[0];
+    const blockedTrackingCommands = ['/add', '/remove', '/list'];
+
+    if (telegramUser?.isBlocked && blockedTrackingCommands.includes(command)) {
+      await this.sendMessage(chatId, telegramMessageBuilder.blockedUser());
+      return;
+    }
 
     if (command === '/start') {
       await this.sendStartMessage(chatId);
@@ -286,7 +292,7 @@ export class TelegramService {
   ): Promise<void> {
     const chatId = callbackQuery.message?.chat.id ? String(callbackQuery.message.chat.id) : undefined;
 
-    await this.recordTelegramUserFromCallback(callbackQuery);
+    const telegramUser = await this.recordTelegramUserFromCallback(callbackQuery);
     await this.answerCallbackQuery(callbackQuery.id);
 
     if (!chatId || !callbackQuery.data) {
@@ -295,6 +301,14 @@ export class TelegramService {
 
     if (callbackQuery.data === 'start:menu') {
       await this.sendStartMessage(chatId);
+      return;
+    }
+
+    if (
+      telegramUser?.isBlocked &&
+      ['start:add', 'start:remove', 'start:list'].includes(callbackQuery.data)
+    ) {
+      await this.sendMessage(chatId, telegramMessageBuilder.blockedUser());
       return;
     }
 
@@ -333,12 +347,12 @@ export class TelegramService {
     }
   }
 
-  private async recordTelegramUserFromMessage(message: TelegramMessage): Promise<void> {
+  private async recordTelegramUserFromMessage(message: TelegramMessage): Promise<UserEntity | null> {
     const user = message.from;
     const telegramId = user?.id ?? message.chat.id;
 
     try {
-      await this.users.upsertUser({
+      return await this.users.upsertUser({
         telegramUserId: String(telegramId),
         username: user?.username ?? message.chat.username ?? null,
         firstName: user?.first_name ?? message.chat.first_name ?? null,
@@ -346,15 +360,16 @@ export class TelegramService {
       });
     } catch (error) {
       logger.warn({ err: error, telegramId: String(telegramId) }, 'Failed to record Telegram user');
+      return null;
     }
   }
 
-  private async recordTelegramUserFromCallback(callbackQuery: TelegramCallbackQuery): Promise<void> {
+  private async recordTelegramUserFromCallback(callbackQuery: TelegramCallbackQuery): Promise<UserEntity | null> {
     const chat = callbackQuery.message?.chat;
     const user = callbackQuery.from;
 
     try {
-      await this.users.upsertUser({
+      return await this.users.upsertUser({
         telegramUserId: String(user.id),
         username: user.username ?? chat?.username ?? null,
         firstName: user.first_name ?? chat?.first_name ?? null,
@@ -362,6 +377,7 @@ export class TelegramService {
       });
     } catch (error) {
       logger.warn({ err: error, telegramId: String(user.id) }, 'Failed to record Telegram user');
+      return null;
     }
   }
 

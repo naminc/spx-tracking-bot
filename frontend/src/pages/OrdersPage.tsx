@@ -386,10 +386,10 @@ export function OrdersPage() {
           placeholder="SPXVN063015366786 or GYH9PRA6"
         />
         <Input
-          label="Chat ID"
+          label="Chat ID / Username"
           value={chatFilter}
           onChange={(event) => setChatFilter(event.target.value)}
-          placeholder="6142403832"
+          placeholder="6142403832 or @naminc"
         />
         <UserFilterSelect
           label="User ID"

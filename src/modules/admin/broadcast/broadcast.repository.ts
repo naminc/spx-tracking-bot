@@ -12,6 +12,11 @@ const userSelect = {
   username: true,
   firstName: true,
   lastName: true,
+  isBlocked: true,
+  blockedAt: true,
+  blockedReason: true,
+  blockedByAdminTelegramId: true,
+  blockedByAdminUsername: true,
   createdAt: true,
 } satisfies Prisma.UserSelect;
 

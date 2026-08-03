@@ -101,12 +101,18 @@ model User {
   username                String?                  @db.VarChar(64)
   firstName               String?                  @db.VarChar(128)
   lastName                String?                  @db.VarChar(128)
+  isBlocked               Boolean                  @default(false)
+  blockedAt               DateTime?
+  blockedReason           String?                  @db.VarChar(512)
+  blockedByAdminTelegramId String?                  @db.VarChar(64)
+  blockedByAdminUsername  String?                  @db.VarChar(64)
   createdAt               DateTime                 @default(now())
   orders                  TrackingOrder[]
   broadcastRecipients     BroadcastRecipient[]
   trackingOrderActionLogs TrackingOrderActionLog[]
 
   @@index([username])
+  @@index([isBlocked])
 }
 
 model TrackingOrderActionLog {

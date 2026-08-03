@@ -11,6 +11,7 @@ const userSelect = {
   username: true,
   firstName: true,
   lastName: true,
+  isBlocked: true,
 } satisfies Prisma.UserSelect;
 
 const trackingOrderInclude = {
@@ -111,23 +112,59 @@ const toJsonObject = (value: Record<string, unknown>): InputJsonObject =>
   }, {});
 
 export class TrackingRepository {
-  findOrders(filters: FindOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+  async findOrders(filters: FindOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+    const userSearch = filters.telegramChatId?.trim();
     const where: Prisma.TrackingOrderWhereInput = {
       carrier: filters.carrier,
       trackingNumber: filters.trackingNumber
         ? { contains: filters.trackingNumber }
         : undefined,
-      telegramChatId: filters.telegramChatId
-        ? { contains: filters.telegramChatId }
-        : undefined,
       finalStatus: filters.finalStatus,
       ...(filters.finalStatus || filters.includeCompleted ? {} : { isCompleted: false }),
     };
+    const andFilters: Prisma.TrackingOrderWhereInput[] = [];
 
     if (filters.userId) {
       where.userId = filters.userId;
     } else if (filters.telegramUserId) {
       where.user = { telegramUserId: filters.telegramUserId };
+    }
+
+    if (userSearch) {
+      const normalizedUsername = userSearch.replace(/^@/, '');
+      const matchedUsers = await prisma.user.findMany({
+        where: {
+          OR: [
+            { telegramUserId: { contains: userSearch } },
+            ...(normalizedUsername
+              ? [{ username: { contains: normalizedUsername } }]
+              : []),
+          ],
+        },
+        select: { telegramUserId: true },
+        take: 500,
+      });
+      const matchedTelegramUserIds = [
+        ...new Set(matchedUsers.map((user) => user.telegramUserId)),
+      ];
+      const userSearchFilters: Prisma.TrackingOrderWhereInput[] = [
+        { telegramChatId: { contains: userSearch } },
+        { user: { telegramUserId: { contains: userSearch } } },
+      ];
+
+      if (normalizedUsername) {
+        userSearchFilters.push({ user: { username: { contains: normalizedUsername } } });
+      }
+
+      if (matchedTelegramUserIds.length > 0) {
+        userSearchFilters.push({ telegramChatId: { in: matchedTelegramUserIds } });
+      }
+
+      andFilters.push({ OR: userSearchFilters });
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     return prisma.trackingOrder.findMany({
@@ -139,7 +176,13 @@ export class TrackingRepository {
 
   findActiveOrders(): Promise<TrackingOrderEntity[]> {
     return prisma.trackingOrder.findMany({
-      where: { isCompleted: false },
+      where: {
+        isCompleted: false,
+        OR: [
+          { userId: null },
+          { user: { isBlocked: false } },
+        ],
+      },
       include: trackingOrderInclude,
       orderBy: { updatedAt: 'asc' },
     });

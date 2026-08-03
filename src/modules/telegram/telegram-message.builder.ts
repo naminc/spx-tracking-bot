@@ -161,6 +161,13 @@ ${adminCommandIcon} <b>Admin Telegram:</b> ${escapeHtml(adminUsername)}`;
 Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sau hoặc dùng <b>/contact</b> để liên hệ admin.`;
   },
 
+  blockedUser(): string {
+    return `<b>🚫 Tài khoản bị hạn chế</b>
+━━━━━━━━━━━━━━━━
+
+Tài khoản của bạn hiện không thể sử dụng chức năng theo dõi. Vui lòng liên hệ admin nếu cần hỗ trợ.`;
+  },
+
   addInstruction(): string {
     return `<b>${addCommandIcon} Thêm đơn tracking</b>
 ━━━━━━━━━━━━━━━━

@@ -3,6 +3,7 @@ import { env } from '../../config/env';
 import { logger } from '../../shared/logger/logger';
 import { FinalStatus } from '../tracking/final-status';
 import { MAX_ORDER_NOTE_LENGTH, trackingNumberSchema } from '../tracking/tracking.schema';
+import { TrackingCarrier } from '../tracking/tracking-carrier';
 import {
   TrackingNotification,
   TrackingService,
@@ -27,6 +28,31 @@ import type {
 type SendMessageOptions = {
   replyMarkup?: TelegramInlineKeyboardMarkup;
 };
+
+type ParsedAddCommand = {
+  carrier: TrackingCarrier | 'AUTO';
+  trackingNumber: string;
+  trackingCredential?: string;
+  note?: string;
+};
+
+type ParsedRemoveCommand = {
+  carrier: TrackingCarrier | 'AUTO';
+  trackingNumber: string;
+};
+
+const carrierAliases: Record<string, TrackingCarrier> = {
+  spx: TrackingCarrier.SPX,
+  ghn: TrackingCarrier.GHN,
+  jnt: TrackingCarrier.JNT,
+  'j&t': TrackingCarrier.JNT,
+};
+
+const getCarrierAlias = (value: string | undefined): TrackingCarrier | undefined =>
+  value ? carrierAliases[value.trim().toLowerCase()] : undefined;
+
+const numericJntTrackingNumberPattern = /^[0-9]{6,32}$/;
+const jntPhoneLast4Pattern = /^\d{4}$/;
 
 export class TelegramService {
   private isPolling = false;
@@ -387,12 +413,20 @@ export class TelegramService {
       return;
     }
 
-    const addMatch = text.match(/^\/add(?:@\w+)?(?:\s+(\S+))?(?:\s+([\s\S]+))?$/i);
-    const rawTrackingNumber = addMatch?.[1];
-    const note = addMatch?.[2]?.trim();
+    const parsedCommand = this.parseAddCommand(text);
 
-    if (!rawTrackingNumber) {
+    if (!parsedCommand) {
       await this.sendMessage(chatId, telegramMessageBuilder.addInstruction());
+      return;
+    }
+
+    const { carrier, trackingNumber: rawTrackingNumber, trackingCredential, note } = parsedCommand;
+
+    if (
+      !trackingCredential &&
+      (carrier === TrackingCarrier.JNT || numericJntTrackingNumberPattern.test(rawTrackingNumber))
+    ) {
+      await this.sendMessage(chatId, telegramMessageBuilder.invalidJntCredential());
       return;
     }
 
@@ -409,10 +443,16 @@ export class TelegramService {
     }
 
     try {
-      const alreadyExists = await this.service.hasOrder(parsed.data, chatId);
+      const alreadyExists = await this.service.hasOrder(parsed.data, chatId, carrier);
 
       if (alreadyExists) {
-        const result = await this.service.addOrder(parsed.data, chatId, note);
+        const result = await this.service.addOrder(
+          parsed.data,
+          chatId,
+          note,
+          carrier,
+          trackingCredential,
+        );
         await trackingOrderActionLogService.safeCreateLog({
           carrier: result.order.carrier,
           action: TrackingOrderActionType.ADD,
@@ -426,14 +466,26 @@ export class TelegramService {
             alreadyExists: true,
             note: note ?? null,
             noteUpdated: result.noteUpdated,
+            trackingCredential: result.order.trackingCredential ? '****' : null,
           },
         });
-        await this.sendMessage(chatId, telegramMessageBuilder.alreadyExists(result));
+        await this.sendMessage(
+          chatId,
+          result.order.isCompleted
+            ? telegramMessageBuilder.alreadyCompleted(result)
+            : telegramMessageBuilder.alreadyExists(result),
+        );
         return;
       }
 
       await this.sendMessage(chatId, telegramMessageBuilder.checking(parsed.data));
-      const result = await this.service.addOrder(parsed.data, chatId, note);
+      const result = await this.service.addOrder(
+        parsed.data,
+        chatId,
+        note,
+        carrier,
+        trackingCredential,
+      );
       await trackingOrderActionLogService.safeCreateLog({
         carrier: result.order.carrier,
         action: TrackingOrderActionType.ADD,
@@ -446,6 +498,7 @@ export class TelegramService {
           carrier: result.order.carrier,
           alreadyExists: false,
           note: note ?? null,
+          trackingCredential: result.order.trackingCredential ? '****' : null,
         },
       });
       await this.sendMessage(chatId, telegramMessageBuilder.addSuccess(result));
@@ -472,13 +525,14 @@ export class TelegramService {
   }
 
   private async handleRemove(chatId: string, text: string): Promise<void> {
-    const [, rawTrackingNumber] = text.split(/\s+/);
+    const parsedCommand = this.parseRemoveCommand(text);
 
-    if (!rawTrackingNumber) {
+    if (!parsedCommand) {
       await this.sendMessage(chatId, telegramMessageBuilder.removeMissingTrackingNumber());
       return;
     }
 
+    const { carrier, trackingNumber: rawTrackingNumber } = parsedCommand;
     const parsed = trackingNumberSchema.safeParse(rawTrackingNumber);
 
     if (!parsed.success) {
@@ -487,7 +541,7 @@ export class TelegramService {
     }
 
     try {
-      const deletedOrder = await this.service.removeOrder(parsed.data, chatId);
+      const deletedOrder = await this.service.removeOrder(parsed.data, chatId, carrier);
       await trackingOrderActionLogService.safeCreateLog({
         carrier: deletedOrder.carrier,
         action: TrackingOrderActionType.REMOVE,
@@ -508,6 +562,79 @@ export class TelegramService {
       logger.error({ err: error, chatId, rawTrackingNumber }, 'Failed to remove Telegram tracking order');
       await this.sendMessage(chatId, telegramMessageBuilder.invalidTrackingNumber());
     }
+  }
+
+  private parseAddCommand(text: string): ParsedAddCommand | null {
+    const content = text.replace(/^\/add(?:@\w+)?/i, '').trim();
+
+    if (!content) {
+      return null;
+    }
+
+    const tokens = content.split(/\s+/);
+    const carrierAlias = getCarrierAlias(tokens[0]);
+    let carrier: TrackingCarrier | 'AUTO' = carrierAlias ?? 'AUTO';
+    let cursor = carrierAlias ? 1 : 0;
+    const trackingNumber = tokens[cursor];
+
+    if (!trackingNumber) {
+      return null;
+    }
+
+    cursor += 1;
+    let trackingCredential: string | undefined;
+
+    if (carrier === TrackingCarrier.JNT) {
+      trackingCredential = tokens[cursor];
+
+      if (!trackingCredential || !jntPhoneLast4Pattern.test(trackingCredential)) {
+        return {
+          carrier,
+          trackingNumber,
+          note: tokens.slice(cursor).join(' ').trim() || undefined,
+        };
+      }
+
+      cursor += 1;
+    } else if (
+      carrier === 'AUTO' &&
+      numericJntTrackingNumberPattern.test(trackingNumber) &&
+      jntPhoneLast4Pattern.test(tokens[cursor] ?? '')
+    ) {
+      carrier = TrackingCarrier.JNT;
+      trackingCredential = tokens[cursor];
+      cursor += 1;
+    }
+
+    const note = tokens.slice(cursor).join(' ').trim();
+
+    return {
+      carrier,
+      trackingNumber,
+      trackingCredential,
+      note: note || undefined,
+    };
+  }
+
+  private parseRemoveCommand(text: string): ParsedRemoveCommand | null {
+    const content = text.replace(/^\/remove(?:@\w+)?/i, '').trim();
+
+    if (!content) {
+      return null;
+    }
+
+    const tokens = content.split(/\s+/);
+    const carrierAlias = getCarrierAlias(tokens[0]);
+    const trackingNumber = tokens[carrierAlias ? 1 : 0];
+
+    if (!trackingNumber) {
+      return null;
+    }
+
+    return {
+      carrier: carrierAlias ?? 'AUTO',
+      trackingNumber,
+    };
   }
 
   private async sendOrderList(chatId: string, options: SendMessageOptions = {}): Promise<void> {

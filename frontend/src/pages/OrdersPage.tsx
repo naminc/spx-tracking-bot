@@ -28,6 +28,8 @@ const maxOrderNoteLength = 512;
 type OrderStatusFilter = FinalStatus | "";
 type CarrierFilter = TrackingCarrier | "";
 type CarrierInput = TrackingCarrier | "AUTO";
+const jntPhoneLast4Pattern = /^\d{4}$/;
+const numericJntTrackingNumberPattern = /^[0-9]{6,32}$/;
 
 function optionalText(value: string | null | undefined) {
   return value && value.trim() ? value : "-";
@@ -102,6 +104,7 @@ export function OrdersPage() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [selectedAddUserId, setSelectedAddUserId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
+  const [trackingCredential, setTrackingCredential] = useState("");
   const [note, setNote] = useState("");
   const [historyOrder, setHistoryOrder] = useState<TrackingOrder | null>(null);
   const normalizedTrackingFilter = trackingFilterInput.trim().toUpperCase();
@@ -118,6 +121,8 @@ export function OrdersPage() {
   const createOrder = useCreateTrackingOrder();
   const deleteOrder = useDeleteTrackingOrder();
   const tableResetKey = `${carrierFilter}|${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}`;
+  const shouldShowJntCredential =
+    addCarrier === "JNT" || (addCarrier === "AUTO" && numericJntTrackingNumberPattern.test(trackingNumber.trim()));
 
   const stats = useMemo(
     () => ({
@@ -241,6 +246,12 @@ export function OrdersPage() {
     }
 
     const normalizedNote = note.trim();
+    const normalizedTrackingCredential = trackingCredential.trim();
+
+    if (shouldShowJntCredential && !jntPhoneLast4Pattern.test(normalizedTrackingCredential)) {
+      toast.error("J&T phone last 4 must contain exactly 4 digits.");
+      return;
+    }
 
     if (normalizedNote.length > maxOrderNoteLength) {
       toast.error(`Note must be at most ${maxOrderNoteLength} characters.`);
@@ -252,9 +263,11 @@ export function OrdersPage() {
       trackingNumber,
       telegramChatId: normalizedTelegramChatId,
       note: normalizedNote || undefined,
+      trackingCredential: normalizedTrackingCredential || undefined,
     });
     setTrackingNumber("");
     setNote("");
+    setTrackingCredential("");
     setTelegramChatId(created.order.telegramChatId);
   };
 
@@ -311,7 +324,7 @@ export function OrdersPage() {
 
       <form
         onSubmit={handleCreate}
-        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[160px_1fr_1.1fr_220px_1fr_auto]"
+        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[160px_1fr_1.1fr_180px_220px_1fr_auto]"
       >
         <div>
           <label htmlFor="add-carrier" className="mb-1 block text-sm font-medium text-gray-700">
@@ -326,11 +339,12 @@ export function OrdersPage() {
             <option value="AUTO">Auto</option>
             <option value="SPX">SPX</option>
             <option value="GHN">GHN</option>
+            <option value="JNT">J&amp;T</option>
           </select>
         </div>
         <Input
           label="Tracking Number"
-          placeholder="SPXVN063015366786 or GYH9PRA6"
+          placeholder="SPXVN063015366786, GYH9PRA6, or 862195772225"
           value={trackingNumber}
           onChange={(event) => setTrackingNumber(event.target.value)}
           required
@@ -348,6 +362,14 @@ export function OrdersPage() {
           placeholder="6142403832"
           value={telegramChatId}
           onChange={(event) => setTelegramChatId(event.target.value)}
+        />
+        <Input
+          label="Phone last 4"
+          placeholder="9613"
+          value={trackingCredential}
+          onChange={(event) => setTrackingCredential(event.target.value)}
+          maxLength={4}
+          disabled={!shouldShowJntCredential}
         />
         <Input
           label="Note"
@@ -377,13 +399,14 @@ export function OrdersPage() {
             <option value="">All carriers</option>
             <option value="SPX">SPX</option>
             <option value="GHN">GHN</option>
+            <option value="JNT">J&amp;T</option>
           </select>
         </div>
         <Input
           label="Tracking Number"
           value={trackingFilterInput}
           onChange={(event) => setTrackingFilterInput(event.target.value)}
-          placeholder="SPXVN063015366786 or GYH9PRA6"
+          placeholder="SPXVN063015366786, GYH9PRA6, or 862195772225"
         />
         <Input
           label="Chat ID / Username"

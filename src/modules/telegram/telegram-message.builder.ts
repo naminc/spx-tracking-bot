@@ -1,5 +1,6 @@
 import type { AddTrackingResult } from '../tracking/tracking.service';
 import type { TrackingCarrier } from '../tracking/tracking-carrier';
+import { FinalStatus } from '../tracking/final-status';
 
 type OrderListItem = {
   carrier: TrackingCarrier;
@@ -49,7 +50,7 @@ const listCommandIcon = '<tg-emoji emoji-id="5265132878395621818">📋</tg-emoji
 const truckCommandIcon = '<tg-emoji emoji-id="6314504740130525114">🚚</tg-emoji>';
 const helloCommandIcon = '<tg-emoji emoji-id="6143364153244390082">👋</tg-emoji>';
 const exampleCommandIcon = '<tg-emoji emoji-id="6138429248706188838">🧾</tg-emoji>';
-const noteCommandIcon = '<tg-emoji emoji-id="6167959932004997710">📝</tg-emoji>';
+const noteCommandIcon = '<tg-emoji emoji-id="5298742255912235479">❌</tg-emoji>';
 const adminCommandIcon = '<tg-emoji emoji-id="6287130615745615050">👮</tg-emoji>';
 const callCommandIcon = '<tg-emoji emoji-id="5847950190887046211">☎️</tg-emoji>';
 const robotCommandIcon = '<tg-emoji emoji-id="5352899869369446268">📌</tg-emoji>';
@@ -75,8 +76,16 @@ const buildNoteLine = (note?: string | null): string => {
   return trimmedNote ? `\n📝 <b>Ghi chú:</b> ${escapeHtml(trimmedNote)}` : '';
 };
 
+const carrierLabels: Record<string, string> = {
+  SPX: 'SPX',
+  GHN: 'GHN',
+  JNT: 'J&T',
+};
+
+const formatCarrier = (carrier: TrackingCarrier): string => carrierLabels[carrier] ?? carrier;
+
 const buildCarrierLine = (carrier: TrackingCarrier): string =>
-  `\n🚚 <b>Đơn vị:</b> ${escapeHtml(carrier)}`;
+  `\n🚚 <b>Đơn vị:</b> ${escapeHtml(formatCarrier(carrier))}`;
 
 const buildCompletedMessage = (title: string, input: TrackingMessageInput): string => `<b>${title}</b>
 ━━━━━━━━━━━━━━━━
@@ -86,24 +95,43 @@ const buildCompletedMessage = (title: string, input: TrackingMessageInput): stri
 ${timeCommandIcon} <b>Thời gian:</b> ${escapeHtml(formatDate(input.eventTime))}
 ⛔ <b>Theo dõi:</b> Bot đã tự động ngừng theo dõi đơn này.`;
 
+const getCompletedTitle = (finalStatus: FinalStatus): string => {
+  if (finalStatus === FinalStatus.DELIVERED) {
+    return '🎉 Đơn hàng đã giao thành công!';
+  }
+
+  if (finalStatus === FinalStatus.FAILED) {
+    return '❌ Giao hàng thất bại';
+  }
+
+  if (finalStatus === FinalStatus.CANCELLED) {
+    return '🚫 Đơn hàng đã bị huỷ';
+  }
+
+  return 'ℹ️ Đơn này đã hoàn tất';
+};
+
 export const telegramMessageBuilder = {
   start(): string {
     return `<b>${truckCommandIcon} EXPRESS TRACKING BOT</b>
 ━━━━━━━━━━━━━━━━
 
-${helloCommandIcon} Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng SPX/GHN tự động.
+${helloCommandIcon} Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng <b>SPX/GHN/J&T</b> tự động.
 
 <b>${robotCommandIcon} Lệnh hỗ trợ</b>
 ━━━━━━━━━━━━━━━━
 ${addCommandIcon} <b>/add &lt;mã vận đơn&gt; &lt;ghi chú&gt;</b> - Thêm đơn hàng cần theo dõi
+${addCommandIcon} <b>/add jnt &lt;mã vận đơn&gt; &lt;4 số cuối SĐT&gt; &lt;ghi chú&gt;</b> - Thêm đơn <b>J&T</b>
 ${listCommandIcon} <b>/list</b> - Xem danh sách đơn đang theo dõi
 ${removeCommandIcon} <b>/remove &lt;mã vận đơn&gt;</b> - Xoá đơn khỏi danh sách
+${removeCommandIcon} <b>/remove jnt &lt;mã vận đơn&gt;</b> - Xoá đơn <b>J&T</b>
 ${truckCommandIcon} <b>/carriers</b> - Xem đơn vị vận chuyển hỗ trợ
 ${contactCommandIcon} <b>/contact</b> - Liên hệ admin
 ${startCommandIcon} <b>/help</b> - Xem hướng dẫn chi tiết
 
 ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
 ${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
+${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
   },
 
@@ -113,9 +141,11 @@ ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
 
 <b>1. Thêm đơn theo dõi</b>
 ${codeCommandIcon} <b>Cú pháp:</b> <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>
-${noteCommandIcon} <b>Chú ý:</b> <b>&lt;ghi_chú&gt;</b> có thể để trống. Bot tự nhận diện <b>SPX/GHN</b> theo mã vận đơn.
+${codeCommandIcon} <b>Cú pháp J&T:</b> <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>
+${noteCommandIcon} <b>Chú ý:</b> <b>&lt;ghi_chú&gt;</b> có thể để trống. Bot tự nhận diện <b>SPX/GHN</b> theo mã vận đơn. <b>J&T</b> cần thêm 4 số cuối SĐT.
 ${exampleCommandIcon} <b>SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
 ${exampleCommandIcon} <b>GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
+${exampleCommandIcon} <b>J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
 
 <b>2. Xem danh sách đang theo dõi</b>
 ${listCommandIcon} <code>/list</code>
@@ -123,6 +153,7 @@ ${listCommandIcon} <code>/list</code>
 <b>3. Xoá đơn khỏi danh sách</b>
 ${codeCommandIcon} <b>Cú pháp:</b> <code>/remove &lt;mã_vận_đơn&gt;</code>
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>
+${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
 
 <b>4. Xem đơn vị vận chuyển hỗ trợ</b>
 ${truckCommandIcon} <code>/carriers</code>
@@ -143,7 +174,12 @@ ${exampleCommandIcon} <b>Ví dụ:</b> <code>SPXVN063015366786</code>
 🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>GYH9PRA6</code>
 
-${startCommandIcon} <b>Cách dùng:</b> Chỉ cần gửi <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>, bot sẽ tự nhận diện đơn vị vận chuyển.`;
+<b>J&T Express</b>
+🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
+${exampleCommandIcon} <b>Ví dụ:</b> <code>862195772225</code>
+${noteCommandIcon} <b>Lưu ý:</b> <b>J&T</b> cần 4 số cuối SĐT để tra cứu.
+
+${startCommandIcon} <b>Cách dùng:</b> <b>SPX/GHN</b> dùng <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>. <b>J&T</b> dùng <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>.`;
   },
 
   contact(adminUsername: string): string {
@@ -174,9 +210,11 @@ Tài khoản của bạn hiện không thể sử dụng chức năng theo dõi.
 
 ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn ngay sau lệnh <b>/add</b>.
 ${codeCommandIcon} <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code></b>
+${codeCommandIcon} <b>J&T: <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code></b>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống
 ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
-${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>`;
+${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
+${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>`;
   },
 
   directTrackingNumberNotAllowed(trackingNumber: string): string {
@@ -213,8 +251,24 @@ ${timeCommandIcon} <b>Thời gian cập nhật:</b> ${escapeHtml(formatDate(resu
 ${result.noteUpdated ? `${successCommandIcon} <b>Cập nhật:</b> Đã lưu ghi chú mới cho đơn này.\n` : ''}ℹ️ <b>Gợi ý:</b> Bạn có thể dùng <b>/list</b> để xem danh sách đơn đang theo dõi.`;
   },
 
+  alreadyCompleted(result: AddTrackingResult): string {
+    const completedMessage = buildCompletedMessage(getCompletedTitle(result.order.finalStatus), {
+      carrier: result.order.carrier,
+      trackingNumber: result.order.trackingNumber,
+      status: result.order.currentStatus,
+      location: result.order.currentLocation ?? undefined,
+      nextLocation: result.order.nextLocation ?? undefined,
+      eventTime: result.order.lastEventTime,
+      note: result.order.note,
+    });
+
+    return `${completedMessage}
+${result.noteUpdated ? `\n${successCommandIcon} <b>Cập nhật:</b> Đã lưu ghi chú mới cho đơn này.` : ''}
+ℹ️ <b>Gợi ý:</b> Nếu muốn thêm lại từ đầu, hãy dùng <code>/remove ${escapeHtml(result.order.trackingNumber)}</code> rồi <code>/add</code> lại.`;
+  },
+
   update(input: UpdateMessageInput): string {
-    return `<b>🔔 ${escapeHtml(input.carrier)} Update:</b> ${escapeHtml(input.status)}
+    return `<b>🔔 ${escapeHtml(formatCarrier(input.carrier))} Update:</b> ${escapeHtml(input.status)}
 ━━━━━━━━━━━━━━━━
 
 📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildCarrierLine(input.carrier)}${buildNoteLine(input.note)}
@@ -246,7 +300,8 @@ ${chartCommandIcon} <b>Tổng cộng:</b> ${escapeHtml(orders.length)} đơn`;
 ━━━━━━━━━━━━━━━━
 
 ${codeCommandIcon} <b>Lệnh mẫu:</b> <code>/add SPXVN063015366786</code>
-${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add GYH9PRA6</code>`;
+${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add GYH9PRA6</code>
+${codeCommandIcon} <b>Lệnh mẫu J&T:</b> <code>/add jnt 862195772225 9613</code>`;
   },
 
   removeSuccess(trackingNumber: string, carrier: TrackingCarrier): string {
@@ -262,7 +317,9 @@ ${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add GYH9PRA6</code>`;
 
 ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cần xoá sau lệnh <b>/remove</b>.
 ${codeCommandIcon} <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b>
- ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>`;
+${codeCommandIcon} <b>J&T: <code>/remove jnt &lt;mã_vận_đơn&gt;</code></b>
+ ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>
+${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>`;
   },
 
   invalidTrackingNumber(): string {
@@ -271,7 +328,16 @@ ${codeCommandIcon} <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b
 
 🧾 <b>Định dạng SPX:</b> <code>SPXVN063015366786</code>
 🧾 <b>Định dạng GHN:</b> <code>GYH9PRA6</code>
+🧾 <b>Định dạng J&T:</b> <code>/add jnt 862195772225 9613</code>
 🔁 <b>Gợi ý:</b> Vui lòng kiểm tra lại và gửi lại mã đúng.`;
+  },
+
+  invalidJntCredential(): string {
+    return `<b>❌ Thiếu 4 số cuối SĐT J&T</b>
+━━━━━━━━━━━━━━━━
+
+🧾 <b>Cú pháp J&T:</b> <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>
+${exampleCommandIcon} <b>Ví dụ:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>`;
   },
 
   noteTooLong(maxLength: number): string {

@@ -1,12 +1,15 @@
 export const TrackingCarrier = {
   SPX: 'SPX',
   GHN: 'GHN',
+  JNT: 'JNT',
 } as const;
 
 export type TrackingCarrier = (typeof TrackingCarrier)[keyof typeof TrackingCarrier];
 
 const spxTrackingNumberPattern = /^SPXVN[A-Z0-9]{6,40}$/i;
 const ghnTrackingNumberPattern = /^[A-Z0-9]{6,32}$/i;
+const jntAutoTrackingNumberPattern = /^[0-9]{6,32}$/;
+const jntTrackingNumberPattern = /^[A-Z0-9]{6,32}$/i;
 
 export const normalizeTrackingNumber = (trackingNumber: string): string =>
   trackingNumber.trim().toUpperCase();
@@ -27,6 +30,10 @@ export const detectTrackingCarrier = (
       : null;
   }
 
+  if (jntAutoTrackingNumberPattern.test(normalizedTrackingNumber)) {
+    return TrackingCarrier.JNT;
+  }
+
   if (ghnTrackingNumberPattern.test(normalizedTrackingNumber)) {
     return TrackingCarrier.GHN;
   }
@@ -42,6 +49,10 @@ export const isValidTrackingNumberForCarrier = (
 
   if (carrier === TrackingCarrier.SPX) {
     return spxTrackingNumberPattern.test(normalizedTrackingNumber);
+  }
+
+  if (carrier === TrackingCarrier.JNT) {
+    return jntTrackingNumberPattern.test(normalizedTrackingNumber);
   }
 
   return ghnTrackingNumberPattern.test(normalizedTrackingNumber);

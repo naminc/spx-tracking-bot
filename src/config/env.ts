@@ -30,6 +30,12 @@ const envSchema = z.object({
   GHN_TRACKING_ORIGIN: z.string().url().default('https://donhang.ghn.vn'),
   GHN_TRACKING_REFERER: z.string().url().default('https://donhang.ghn.vn/'),
   GHN_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  JNT_TRACKING_URL: z
+    .string()
+    .url()
+    .default('https://jtexpress.vn/vi/tracking'),
+  JNT_TRACKING_REFERER: z.string().url().default('https://jtexpress.vn/vi/tracking'),
+  JNT_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   DELIVERED_KEYWORDS: z.string().default('Giao hàng thành công,Delivered'),
   FAILED_KEYWORDS: z
     .string()

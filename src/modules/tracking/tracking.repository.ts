@@ -55,6 +55,7 @@ type CreateOrderInput = {
   trackingNumber: string;
   telegramChatId: string;
   note?: string | null;
+  trackingCredential?: string | null;
   latestRecord: NormalizedTrackingRecord;
   isCompleted: boolean;
   finalStatus: FinalStatus;
@@ -244,6 +245,7 @@ export class TrackingRepository {
           telegramChatId: input.telegramChatId,
           userId,
           note: input.note ?? null,
+          trackingCredential: input.trackingCredential ?? null,
           currentStatus: input.latestRecord.status,
           currentStatusCode: input.latestRecord.trackingCode,
           currentLocation: input.latestRecord.location,
@@ -269,6 +271,20 @@ export class TrackingRepository {
     return prisma.trackingOrder.update({
       where: { id: orderId },
       data: { note },
+      include: trackingOrderInclude,
+    });
+  }
+
+  updateOrderDetails(
+    orderId: number,
+    input: { note?: string | null; trackingCredential?: string | null },
+  ): Promise<TrackingOrderEntity> {
+    return prisma.trackingOrder.update({
+      where: { id: orderId },
+      data: {
+        note: input.note,
+        trackingCredential: input.trackingCredential,
+      },
       include: trackingOrderInclude,
     });
   }

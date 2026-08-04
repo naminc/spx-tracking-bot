@@ -25,6 +25,7 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "axios": "^1.17.0",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

@@ -68,11 +68,13 @@ export function useCreateTrackingOrder() {
       trackingNumber: string;
       telegramChatId?: string;
       note?: string;
+      trackingCredential?: string;
     }) =>
       apiClient.post<CreateTrackingOrderResult>("/orders", input),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
       queryClient.invalidateQueries({ queryKey: ["tracking-histories"] });
+      queryClient.invalidateQueries({ queryKey: ["tracking-action-logs"] });
       if (result.alreadyExists) {
         if (result.noteUpdated) {
           toast.warning("Đơn hàng đã tồn tại, đã cập nhật ghi chú");
@@ -103,6 +105,7 @@ export function useDeleteTrackingOrder() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
       queryClient.invalidateQueries({ queryKey: ["tracking-histories"] });
+      queryClient.invalidateQueries({ queryKey: ["tracking-action-logs"] });
       toast.success("Đã xoá đơn hàng");
     },
     onError: (error: Error) => toast.error(error.message),

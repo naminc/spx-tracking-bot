@@ -174,6 +174,7 @@ export function TrackingActionLogsPage() {
             <option value="">All carriers</option>
             <option value="SPX">SPX</option>
             <option value="GHN">GHN</option>
+            <option value="JNT">J&amp;T</option>
           </select>
         </div>
         <div>
@@ -210,7 +211,7 @@ export function TrackingActionLogsPage() {
           label="Tracking Number"
           value={trackingInput}
           onChange={(event) => setTrackingInput(event.target.value)}
-          placeholder="SPXVN063015366786 or GYH9PRA6"
+          placeholder="SPXVN063015366786, GYH9PRA6, or 862195772225"
         />
         <Input
           label="Telegram Chat ID"

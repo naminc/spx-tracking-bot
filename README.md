@@ -32,11 +32,12 @@ ADMIN_JWT_SECRET=change-this-admin-jwt-secret
 ADMIN_JWT_EXPIRES_IN_SECONDS=604800
 TRACKING_CHECK_INTERVAL_MINUTES=5
 GHN_TRACKING_LOGS_URL=https://fe-online-gateway.ghn.vn/order-tracking/public-api/client/tracking-logs
+JNT_TRACKING_URL=https://jtexpress.vn/vi/tracking
 ```
 
 ## Tracking Provider Config
 
-SPX and GHN provider HTTP settings are centralized in `src/config/tracking-providers.ts` and read from env.
+SPX, GHN, and J&T provider HTTP settings are centralized in `src/config/tracking-providers.ts` and read from env.
 
 Common production overrides:
 
@@ -51,7 +52,13 @@ GHN_TRACKING_LOGS_URL=https://fe-online-gateway.ghn.vn/order-tracking/public-api
 GHN_TRACKING_ORIGIN=https://donhang.ghn.vn
 GHN_TRACKING_REFERER=https://donhang.ghn.vn/
 GHN_REQUEST_TIMEOUT_MS=15000
+
+JNT_TRACKING_URL=https://jtexpress.vn/vi/tracking
+JNT_TRACKING_REFERER=https://jtexpress.vn/vi/tracking
+JNT_REQUEST_TIMEOUT_MS=15000
 ```
+
+J&T tracking requires the phone last 4 digits. Store it in `TrackingOrder.trackingCredential`; API responses only expose a masked value.
 
 ## Frontend API URL
 
@@ -121,9 +128,12 @@ Create request:
   "carrier": "AUTO",
   "trackingNumber": "SPXVN063015366786",
   "telegramChatId": "api",
-  "note": "Optional note"
+  "note": "Optional note",
+  "trackingCredential": "9613"
 }
 ```
+
+Only send `trackingCredential` for J&T orders.
 
 Delete request can include the chat id as query string:
 
@@ -173,9 +183,11 @@ Commands:
 - `/help`
 - `/add SPXVNxxxx`
 - `/add GYH9PRA6 optional note`
+- `/add jnt 862195772225 9613 optional note`
 - `/list`
 - `/remove SPXVNxxxx`
 - `/remove GYH9PRA6`
+- `/remove jnt 862195772225`
 - `/carriers`
 - `/contact`
 

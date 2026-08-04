@@ -26,4 +26,14 @@ export const trackingProviderConfig = {
       'user-agent': env.TRACKING_HTTP_USER_AGENT,
     },
   },
+  jnt: {
+    trackingUrl: env.JNT_TRACKING_URL,
+    requestTimeoutMs: env.JNT_REQUEST_TIMEOUT_MS,
+    headers: {
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'vi,en-US;q=0.9,en;q=0.8',
+      referer: env.JNT_TRACKING_REFERER,
+      'user-agent': env.TRACKING_HTTP_USER_AGENT,
+    },
+  },
 } as const;

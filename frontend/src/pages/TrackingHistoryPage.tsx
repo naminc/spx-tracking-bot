@@ -33,7 +33,7 @@ export function TrackingHistoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawInitialCarrier = searchParams.get("carrier")?.trim().toUpperCase();
   const initialCarrier: TrackingCarrier | "" =
-    rawInitialCarrier === "SPX" || rawInitialCarrier === "GHN" ? rawInitialCarrier : "";
+    rawInitialCarrier === "SPX" || rawInitialCarrier === "GHN" || rawInitialCarrier === "JNT" ? rawInitialCarrier : "";
   const initialTrackingNumber = searchParams.get("trackingNumber")?.trim().toUpperCase() ?? "";
   const initialChatId = searchParams.get("telegramChatId")?.trim() ?? "";
   const initialUserId = searchParams.get("userId")?.trim() ?? "";
@@ -174,11 +174,12 @@ export function TrackingHistoryPage() {
             <option value="">All carriers</option>
             <option value="SPX">SPX</option>
             <option value="GHN">GHN</option>
+            <option value="JNT">J&amp;T</option>
           </select>
         </div>
         <Input
           label="Tracking Number"
-          placeholder="SPXVN063015366786 or GYH9PRA6"
+          placeholder="SPXVN063015366786, GYH9PRA6, or 862195772225"
           value={trackingInput}
           onChange={(event) => setTrackingInput(event.target.value)}
         />

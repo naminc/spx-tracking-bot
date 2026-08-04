@@ -1,5 +1,5 @@
 export type FinalStatus = "PENDING" | "DELIVERED" | "FAILED" | "CANCELLED";
-export type TrackingCarrier = "SPX" | "GHN";
+export type TrackingCarrier = "SPX" | "GHN" | "JNT";
 
 export type TrackingUser = {
   id: number;
@@ -18,6 +18,7 @@ export type TrackingOrder = {
   userId: number | null;
   user: TrackingUser | null;
   note: string | null;
+  trackingCredential: string | null;
   currentStatus: string;
   currentStatusCode: string;
   currentLocation: string | null;

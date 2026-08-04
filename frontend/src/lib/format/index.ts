@@ -24,4 +24,5 @@ export const statusMap: Record<string, StatusConfig> = {
   ADMIN: { color: "bg-indigo-100 text-indigo-800", label: "Admin" },
   SPX: { color: "bg-orange-100 text-orange-800", label: "SPX" },
   GHN: { color: "bg-emerald-100 text-emerald-800", label: "GHN" },
+  JNT: { color: "bg-red-100 text-red-800", label: "J&T" },
 };

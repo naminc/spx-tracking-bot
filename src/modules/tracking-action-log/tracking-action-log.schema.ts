@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { TrackingCarrier } from '../tracking/tracking-carrier';
 
 export const listTrackingOrderActionLogsQuerySchema = z.object({
-  carrier: z.enum([TrackingCarrier.SPX, TrackingCarrier.GHN]).optional(),
+  carrier: z.enum([TrackingCarrier.SPX, TrackingCarrier.GHN, TrackingCarrier.JNT]).optional(),
   action: z.nativeEnum(TrackingOrderActionType).optional(),
   source: z.nativeEnum(TrackingOrderActionSource).optional(),
   trackingNumber: z.string().trim().min(1).max(64).transform((value) => value.toUpperCase()).optional(),

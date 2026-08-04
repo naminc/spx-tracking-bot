@@ -9,6 +9,12 @@ import {
 import type { FinalStatus } from './final-status';
 import { TrackingService, trackingService } from './tracking.service';
 import type { TrackingCarrier } from './tracking-carrier';
+import type { TrackingOrderEntity } from './tracking.repository';
+
+const toPublicTrackingOrder = (order: TrackingOrderEntity) => ({
+  ...order,
+  trackingCredential: order.trackingCredential ? '****' : null,
+});
 
 export class TrackingController {
   constructor(private readonly service: TrackingService = trackingService) {}
@@ -34,7 +40,9 @@ export class TrackingController {
       finalStatus,
       includeCompleted,
     });
-    response.json(successResponse('Lấy danh sách đơn hàng thành công', orders));
+    response.json(
+      successResponse('Lấy danh sách đơn hàng thành công', orders.map(toPublicTrackingOrder)),
+    );
   };
 
   listHistories = async (request: Request, response: Response): Promise<void> => {
@@ -62,19 +70,26 @@ export class TrackingController {
     const { trackingNumber } = request.params as { trackingNumber: string };
     const { carrier } = request.query as unknown as { carrier: TrackingCarrier | 'AUTO' };
     const order = await this.service.getOrder(trackingNumber, carrier);
-    response.json(successResponse('Lấy thông tin đơn hàng thành công', order));
+    response.json(successResponse('Lấy thông tin đơn hàng thành công', toPublicTrackingOrder(order)));
   };
 
   createOrder = async (request: Request, response: Response): Promise<void> => {
-    const { carrier, trackingNumber, telegramChatId, note } = request.body as {
+    const { carrier, trackingNumber, telegramChatId, note, trackingCredential } = request.body as {
       carrier: TrackingCarrier | 'AUTO';
       trackingNumber: string;
       telegramChatId: string;
       note?: string | null;
+      trackingCredential?: string;
     };
 
     const admin = authService.requireAdmin(request);
-    const result = await this.service.addOrder(trackingNumber, telegramChatId, note, carrier);
+    const result = await this.service.addOrder(
+      trackingNumber,
+      telegramChatId,
+      note,
+      carrier,
+      trackingCredential,
+    );
     await trackingOrderActionLogService.safeCreateLog({
       carrier: result.order.carrier,
       action: TrackingOrderActionType.ADD,
@@ -91,6 +106,7 @@ export class TrackingController {
         alreadyExists: result.alreadyExists,
         note: result.order.note,
         noteUpdated: result.noteUpdated,
+        trackingCredential: result.order.trackingCredential ? '****' : null,
       },
     });
 
@@ -102,7 +118,7 @@ export class TrackingController {
             ? 'Đơn hàng đã tồn tại trong danh sách theo dõi'
             : 'Thêm đơn hàng thành công',
           {
-            order: result.order,
+            order: toPublicTrackingOrder(result.order),
             alreadyExists: result.alreadyExists,
             noteUpdated: result.noteUpdated,
           },
@@ -133,7 +149,7 @@ export class TrackingController {
         deletedOrderId: deletedOrder.id,
       },
     });
-    response.json(successResponse('Xóa theo dõi đơn hàng thành công', deletedOrder));
+    response.json(successResponse('Xóa theo dõi đơn hàng thành công', toPublicTrackingOrder(deletedOrder)));
   };
 
   getHistories = async (request: Request, response: Response): Promise<void> => {

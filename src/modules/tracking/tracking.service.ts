@@ -2,6 +2,7 @@ import { env } from '../../config/env';
 import { AppError } from '../../shared/errors/app-error';
 import { logger } from '../../shared/logger/logger';
 import { GhnService, ghnService } from '../ghn/ghn.service';
+import { JntService, jntService } from '../jnt/jnt.service';
 import { spxService, SpxService } from '../spx/spx.service';
 import { FinalStatus } from './final-status';
 import {
@@ -90,6 +91,7 @@ export class TrackingService {
     private readonly repository: TrackingRepository = trackingRepository,
     private readonly spx: SpxService = spxService,
     private readonly ghn: GhnService = ghnService,
+    private readonly jnt: JntService = jntService,
   ) {}
 
   listOrders(filters: ListOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
@@ -141,10 +143,15 @@ export class TrackingService {
     telegramChatId = 'api',
     note?: string | null,
     carrierHint: TrackingCarrier | 'AUTO' = 'AUTO',
+    trackingCredential?: string | null,
   ): Promise<AddTrackingResult> {
     const normalizedTrackingNumber = normalizeTrackingNumber(trackingNumber);
     const carrier = this.resolveCarrier(normalizedTrackingNumber, carrierHint);
     const normalizedNote = this.normalizeNote(note);
+    const normalizedTrackingCredential = this.normalizeTrackingCredential(
+      carrier,
+      trackingCredential,
+    );
     const existingOrder = await this.repository.findByTrackingNumberAndChat(
       carrier,
       normalizedTrackingNumber,
@@ -153,8 +160,16 @@ export class TrackingService {
 
     if (existingOrder) {
       const shouldUpdateNote = normalizedNote !== undefined && existingOrder.note !== normalizedNote;
-      const order = shouldUpdateNote
-        ? await this.repository.updateOrderNote(existingOrder.id, normalizedNote)
+      const shouldUpdateCredential =
+        normalizedTrackingCredential !== undefined &&
+        existingOrder.trackingCredential !== normalizedTrackingCredential;
+      const order = shouldUpdateNote || shouldUpdateCredential
+        ? await this.repository.updateOrderDetails(existingOrder.id, {
+            note: shouldUpdateNote ? normalizedNote : undefined,
+            trackingCredential: shouldUpdateCredential
+              ? normalizedTrackingCredential
+              : undefined,
+          })
         : existingOrder;
 
       return {
@@ -165,7 +180,11 @@ export class TrackingService {
       };
     }
 
-    const latestRecord = await this.getLatestTrackingRecord(carrier, normalizedTrackingNumber);
+    const latestRecord = await this.getLatestTrackingRecord(
+      carrier,
+      normalizedTrackingNumber,
+      normalizedTrackingCredential,
+    );
     const finalStatus = this.detectFinalStatus(
       latestRecord.status,
       latestRecord.trackingCode,
@@ -176,6 +195,7 @@ export class TrackingService {
       trackingNumber: normalizedTrackingNumber,
       telegramChatId,
       note: normalizedNote ?? null,
+      trackingCredential: normalizedTrackingCredential ?? null,
       latestRecord,
       finalStatus,
       isCompleted: finalStatus !== FinalStatus.PENDING,
@@ -210,7 +230,11 @@ export class TrackingService {
 
     for (const order of activeOrders) {
       try {
-        const latestRecord = await this.getLatestTrackingRecord(order.carrier, order.trackingNumber);
+        const latestRecord = await this.getLatestTrackingRecord(
+          order.carrier,
+          order.trackingNumber,
+          order.trackingCredential,
+        );
         const hasChanged =
           order.currentStatusCode !== latestRecord.trackingCode ||
           order.lastEventTime.getTime() !== latestRecord.eventTime.getTime();
@@ -266,6 +290,10 @@ export class TrackingService {
       return this.detectGhnFinalStatus(status, trackingCode);
     }
 
+    if (carrier === TrackingCarrier.JNT) {
+      return this.detectJntFinalStatus(status, trackingCode);
+    }
+
     const normalizedStatus = normalize(status);
 
     if (env.DELIVERED_KEYWORDS.some((keyword) => normalizedStatus.includes(normalize(keyword)))) {
@@ -286,9 +314,14 @@ export class TrackingService {
   private getLatestTrackingRecord(
     carrier: TrackingCarrier,
     trackingNumber: string,
+    trackingCredential?: string | null,
   ): Promise<NormalizedTrackingRecord> {
     if (carrier === TrackingCarrier.GHN) {
       return this.ghn.getLatestTrackingRecord(trackingNumber);
+    }
+
+    if (carrier === TrackingCarrier.JNT) {
+      return this.jnt.getLatestTrackingRecord(trackingNumber, trackingCredential);
     }
 
     return this.spx.getLatestTrackingRecord(trackingNumber);
@@ -301,7 +334,7 @@ export class TrackingService {
     const carrier = detectTrackingCarrier(trackingNumber, carrierHint);
 
     if (!carrier || !isValidTrackingNumberForCarrier(trackingNumber, carrier)) {
-      throw new AppError('Tracking number must be a valid SPX or GHN code', 400);
+      throw new AppError('Tracking number must be a valid SPX, GHN, or J&T code', 400);
     }
 
     return carrier;
@@ -332,6 +365,24 @@ export class TrackingService {
         'giao that bai',
       ])
     ) {
+      return FinalStatus.FAILED;
+    }
+
+    return FinalStatus.PENDING;
+  }
+
+  private detectJntFinalStatus(status: string, trackingCode?: string): FinalStatus {
+    const normalizedStatus = normalize(`${trackingCode ?? ''} ${status}`);
+
+    if (includesAnyPhrase(normalizedStatus, ['delivered', 'da ky nhan', 'giao hang thanh cong'])) {
+      return FinalStatus.DELIVERED;
+    }
+
+    if (includesAnyPhrase(normalizedStatus, ['cancel', 'cancelled', 'canceled', 'da huy'])) {
+      return FinalStatus.CANCELLED;
+    }
+
+    if (includesAnyPhrase(normalizedStatus, ['khong thanh cong', 'that bai', 'failed'])) {
       return FinalStatus.FAILED;
     }
 
@@ -382,6 +433,31 @@ export class TrackingService {
     }
 
     return trimmedNote;
+  }
+
+  private normalizeTrackingCredential(
+    carrier: TrackingCarrier,
+    trackingCredential: string | null | undefined,
+  ): string | null | undefined {
+    if (trackingCredential === undefined) {
+      if (carrier === TrackingCarrier.JNT) {
+        throw new AppError('J&T tracking requires phone last 4 digits', 400);
+      }
+
+      return undefined;
+    }
+
+    if (carrier !== TrackingCarrier.JNT) {
+      return undefined;
+    }
+
+    const trimmedCredential = trackingCredential?.trim() ?? '';
+
+    if (!/^\d{4}$/.test(trimmedCredential)) {
+      throw new AppError('J&T phone last 4 must contain exactly 4 digits', 400);
+    }
+
+    return trimmedCredential;
   }
 }
 

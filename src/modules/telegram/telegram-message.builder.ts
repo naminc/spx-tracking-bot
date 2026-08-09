@@ -76,6 +76,11 @@ const buildNoteLine = (note?: string | null): string => {
   return trimmedNote ? `\n📝 <b>Ghi chú:</b> ${escapeHtml(trimmedNote)}` : '';
 };
 
+const buildNoteTitlePrefix = (note?: string | null): string => {
+  const trimmedNote = note?.trim();
+  return trimmedNote ? `[${escapeHtml(trimmedNote)}] ` : '';
+};
+
 const carrierLabels: Record<string, string> = {
   SPX: 'SPX',
   GHN: 'GHN',
@@ -268,7 +273,7 @@ ${result.noteUpdated ? `\n${successCommandIcon} <b>Cập nhật:</b> Đã lưu g
   },
 
   update(input: UpdateMessageInput): string {
-    return `<b>🔔 ${escapeHtml(formatCarrier(input.carrier))} Update:</b> ${escapeHtml(input.status)}
+    return `<b>🔔 ${escapeHtml(formatCarrier(input.carrier))} Update:</b> ${buildNoteTitlePrefix(input.note)}${escapeHtml(input.status)}
 ━━━━━━━━━━━━━━━━
 
 📦 <b>Mã vận đơn:</b> <code>${escapeHtml(input.trackingNumber)}</code>${buildCarrierLine(input.carrier)}${buildNoteLine(input.note)}

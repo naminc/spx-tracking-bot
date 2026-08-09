@@ -1,4 +1,5 @@
 import { BroadcastStatus } from '@prisma/client';
+import { AxiosError } from 'axios';
 import { AppError } from '../../../shared/errors/app-error';
 import { telegramService } from '../../telegram/telegram.service';
 import {
@@ -25,6 +26,18 @@ const escapeHtml = (value: unknown): string =>
     .replace(/'/g, '&#39;');
 
 const toErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    const responseData = error.response?.data as
+      | { description?: unknown; message?: unknown }
+      | undefined;
+    const telegramDescription =
+      typeof responseData?.description === 'string' ? responseData.description : undefined;
+    const responseMessage =
+      typeof responseData?.message === 'string' ? responseData.message : undefined;
+
+    return (telegramDescription ?? responseMessage ?? error.message).slice(0, MAX_ERROR_MESSAGE_LENGTH);
+  }
+
   const message = error instanceof Error ? error.message : String(error);
   return message.slice(0, MAX_ERROR_MESSAGE_LENGTH);
 };
@@ -102,13 +115,11 @@ export class BroadcastService {
   }
 
   private buildTelegramMessage(title: string | null, message: string): string {
-    const escapedMessage = escapeHtml(message);
-
     if (!title) {
-      return escapedMessage;
+      return message;
     }
 
-    return `<b>${escapeHtml(title)}</b>\n\n${escapedMessage}`;
+    return `<b>${escapeHtml(title)}</b>\n\n${message}`;
   }
 }
 

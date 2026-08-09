@@ -3,6 +3,7 @@ import type { User } from "./user";
 export type BroadcastStatus = "DRAFT" | "SENDING" | "SENT" | "FAILED";
 export type BroadcastRecipientStatus = "PENDING" | "SENT" | "FAILED";
 export type BroadcastTargetType = "ALL_USERS" | "SELECTED_USERS";
+export type BroadcastParseMode = "HTML";
 
 export type BroadcastRecipient = {
   id: number;
@@ -37,6 +38,7 @@ export type BroadcastDetail = Broadcast & {
 export type CreateBroadcastInput = {
   title?: string;
   message: string;
+  parseMode?: BroadcastParseMode;
   targetType: BroadcastTargetType;
   userIds?: number[];
 };

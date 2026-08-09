@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const broadcastTargetTypeSchema = z.enum(['ALL_USERS', 'SELECTED_USERS']);
+export const broadcastParseModeSchema = z.enum(['HTML']);
 
 export const createBroadcastSchema = z
   .object({
@@ -14,7 +15,8 @@ export const createBroadcastSchema = z
       .string()
       .trim()
       .min(1, 'Message is required')
-      .max(4000, 'Message must be at most 4000 characters'),
+      .max(4096, 'Message must be at most 4096 characters'),
+    parseMode: broadcastParseModeSchema.optional().default('HTML'),
     targetType: broadcastTargetTypeSchema,
     userIds: z.array(z.coerce.number().int().positive()).optional().default([]),
   })

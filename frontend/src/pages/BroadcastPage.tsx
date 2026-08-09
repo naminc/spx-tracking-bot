@@ -18,7 +18,7 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
 
-const maxMessageLength = 4000;
+const maxMessageLength = 4096;
 
 function optionalDate(value: string | null | undefined) {
   return value ? formatDate(value) : "-";
@@ -86,6 +86,7 @@ export function BroadcastPage() {
       const broadcast = await createBroadcast.mutateAsync({
         title: trimmedTitle || undefined,
         message: trimmedMessage,
+        parseMode: "HTML",
         targetType,
         userIds: targetType === "SELECTED_USERS" ? selectedUserIds : undefined,
       });
@@ -277,8 +278,13 @@ export function BroadcastPage() {
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 required
               />
-              <div className="mt-1 text-right text-xs text-gray-500">
-                {message.length}/{maxMessageLength}
+              <div className="mt-1 flex flex-col gap-1 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  HTML supported: &lt;b&gt;bold&lt;/b&gt;, &lt;i&gt;italic&lt;/i&gt;, &lt;code&gt;code&lt;/code&gt;, &lt;a href=&quot;https://example.com&quot;&gt;link&lt;/a&gt;
+                </span>
+                <span className="text-right">
+                  {message.length}/{maxMessageLength}
+                </span>
               </div>
             </div>
           </div>

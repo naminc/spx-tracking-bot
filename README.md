@@ -69,6 +69,7 @@ Local frontend development:
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api
+VITE_TELEGRAM_BOT_URL=https://t.me/your_bot_username
 ```
 
 When using the localhost API URL, open Vite at `http://localhost:5173` so browser cookies are sent consistently.
@@ -77,7 +78,17 @@ Production/Vercel:
 
 ```env
 VITE_API_BASE_URL=https://api.example.com/api
+VITE_TELEGRAM_BOT_URL=https://t.me/your_bot_username
 ```
+
+Public tracking page:
+
+```txt
+GET  /track
+POST /api/public/track
+```
+
+The public tracking API is read-only. It checks SPX, GHN, or J&T directly through the configured providers and does not create tracking orders, histories, users, or action logs.
 
 ## Response Format
 

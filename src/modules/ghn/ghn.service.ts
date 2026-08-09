@@ -101,6 +101,17 @@ const isNarrativeAddress = (address: string): boolean => {
 
 export class GhnService {
   async getLatestTrackingRecord(trackingNumber: string): Promise<NormalizedTrackingRecord> {
+    const records = await this.getTrackingRecords(trackingNumber);
+    const latestRecord = records[0];
+
+    if (!latestRecord) {
+      throw new AppError('GHN did not return tracking logs for this order', 404);
+    }
+
+    return latestRecord;
+  }
+
+  async getTrackingRecords(trackingNumber: string): Promise<NormalizedTrackingRecord[]> {
     const response = await this.getTrackingResponse(trackingNumber);
     const orderInfo = response.data?.order_info ?? null;
     const logs = response.data?.tracking_logs ?? [];
@@ -117,7 +128,7 @@ export class GhnService {
       throw new AppError('GHN did not return tracking logs for this order', 404);
     }
 
-    return this.normalizeRecord(trackingNumber, latestLog, orderInfo, sortedLogs);
+    return sortedLogs.map((log) => this.normalizeRecord(trackingNumber, log, orderInfo, sortedLogs));
   }
 
   private async getTrackingResponse(trackingNumber: string): Promise<GhnApiResponse> {

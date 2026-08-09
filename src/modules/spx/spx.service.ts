@@ -120,10 +120,19 @@ export class SpxService {
       throw new AppError('SPX did not return tracking records for this order', 404);
     }
 
-    return this.normalizeRecord(trackingNumber, latestRecord);
+    return latestRecord;
   }
 
-  private async getTrackingRecords(trackingNumber: string): Promise<SpxRecord[]> {
+  async getTrackingRecords(trackingNumber: string): Promise<NormalizedSpxRecord[]> {
+    const records = await this.getRawTrackingRecords(trackingNumber);
+    const normalizedRecords = records.map((record) => this.normalizeRecord(trackingNumber, record));
+
+    return normalizedRecords.sort(
+      (first, second) => second.eventTime.getTime() - first.eventTime.getTime(),
+    );
+  }
+
+  private async getRawTrackingRecords(trackingNumber: string): Promise<SpxRecord[]> {
     const maxAttempts = trackingProviderConfig.spx.maxAttempts;
     let lastError: unknown;
 

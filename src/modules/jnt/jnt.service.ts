@@ -13,36 +13,49 @@ export class JntService {
     trackingNumber: string,
     phoneLast4?: string | null,
   ): Promise<NormalizedTrackingRecord> {
+    const records = await this.getTrackingRecords(trackingNumber, phoneLast4);
+    const latestRecord = records[0];
+
+    if (!latestRecord) {
+      throw new AppError('J&T did not return tracking history for this order', 404);
+    }
+
+    return latestRecord;
+  }
+
+  async getTrackingRecords(
+    trackingNumber: string,
+    phoneLast4?: string | null,
+  ): Promise<NormalizedTrackingRecord[]> {
     if (!phoneLast4 || !/^\d{4}$/.test(phoneLast4)) {
       throw new AppError('J&T tracking requires phone last 4 digits', 400);
     }
 
     const html = await this.client.getTrackingHtml(trackingNumber, phoneLast4);
     const parsed = parseJntTrackingHtml(html, trackingNumber);
-    const latestEvent = parsed.events[0];
 
-    if (!latestEvent) {
+    if (parsed.events.length === 0) {
       throw new AppError('J&T did not return tracking history for this order', 404);
     }
 
-    return {
+    return parsed.events.map((event) => ({
       carrier: TrackingCarrier.JNT,
       trackingNumber: parsed.trackingNumber,
-      trackingCode: latestEvent.trackingCode,
-      trackingName: latestEvent.trackingName,
-      status: latestEvent.status,
-      location: latestEvent.location,
-      nextLocation: latestEvent.nextLocation,
-      milestoneCode: latestEvent.milestoneCode,
-      milestoneName: latestEvent.milestoneName,
-      eventTime: latestEvent.eventTime,
+      trackingCode: event.trackingCode,
+      trackingName: event.trackingName,
+      status: event.status,
+      location: event.location,
+      nextLocation: event.nextLocation,
+      milestoneCode: event.milestoneCode,
+      milestoneName: event.milestoneName,
+      eventTime: event.eventTime,
       rawData: {
         source: 'jtexpress.vn',
         billcode: parsed.trackingNumber,
         cellphone: maskPhoneLast4(phoneLast4),
-        latest_event: latestEvent.rawData,
+        event: event.rawData,
       },
-    };
+    }));
   }
 }
 

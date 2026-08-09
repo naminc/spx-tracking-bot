@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { LoginPage } from "./pages/LoginPage";
+import { PublicTrackingPage } from "./pages/PublicTrackingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { BroadcastPage } from "./pages/BroadcastPage";
@@ -22,6 +23,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="/track" element={<PublicTrackingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         element={

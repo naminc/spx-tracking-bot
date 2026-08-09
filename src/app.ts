@@ -8,6 +8,7 @@ import { broadcastRouter } from './modules/admin/broadcast/broadcast.route';
 import { dashboardRouter } from './modules/admin/dashboard/dashboard.route';
 import { settingRouter } from './modules/admin/setting/setting.route';
 import { userRouter } from './modules/admin/user/user.route';
+import { publicTrackingRouter } from './modules/public-tracking/public-tracking.route';
 import { telegramRouter } from './modules/telegram/telegram.route';
 import { trackingRouter } from './modules/tracking/tracking.route';
 import { trackingOrderActionLogRouter } from './modules/tracking-action-log/tracking-action-log.route';
@@ -29,6 +30,7 @@ app.get('/health', (_request, response) => {
 });
 
 app.use('/api/admin/auth', authRouter);
+app.use('/api/public', publicTrackingRouter);
 app.use('/api/admin/dashboard', requireAdminAuth, dashboardRouter);
 app.use('/api/admin/settings', requireAdminAuth, settingRouter);
 app.use('/api/orders', requireAdminAuth, trackingRouter);

@@ -36,6 +36,13 @@ const envSchema = z.object({
     .default('https://jtexpress.vn/vi/tracking'),
   JNT_TRACKING_REFERER: z.string().url().default('https://jtexpress.vn/vi/tracking'),
   JNT_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  PUBLIC_TRACKING_URL: z
+    .string()
+    .trim()
+    .default('')
+    .refine((value) => !value || /^https?:\/\/.+/i.test(value), {
+      message: 'PUBLIC_TRACKING_URL must be a valid HTTP URL',
+    }),
   DELIVERED_KEYWORDS: z.string().default('Giao hàng thành công,Delivered'),
   FAILED_KEYWORDS: z
     .string()

@@ -37,8 +37,14 @@ export type TelegramGetUpdatesResponse = {
 };
 
 export type TelegramInlineKeyboardMarkup = {
-  inline_keyboard: {
-    text: string;
-    callback_data: string;
-  }[][];
+  inline_keyboard: (
+    | {
+        text: string;
+        callback_data: string;
+      }
+    | {
+        text: string;
+        url: string;
+      }
+  )[][];
 };

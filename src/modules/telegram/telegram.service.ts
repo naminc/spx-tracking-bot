@@ -57,18 +57,25 @@ const jntPhoneLast4Pattern = /^\d{4}$/;
 export class TelegramService {
   private isPolling = false;
   private pollingOffset = 0;
-  private readonly startMenuReplyMarkup: TelegramInlineKeyboardMarkup = {
-    inline_keyboard: [
+  private readonly backToStartMenuReplyMarkup: TelegramInlineKeyboardMarkup = {
+    inline_keyboard: [[{ text: '⬅️ Quay lại menu', callback_data: 'start:menu' }]],
+  };
+
+  private buildStartMenuReplyMarkup(): TelegramInlineKeyboardMarkup {
+    const inlineKeyboard: TelegramInlineKeyboardMarkup['inline_keyboard'] = [
       [
         { text: '➕ Thêm đơn hàng', callback_data: 'start:add' },
         { text: '🗑️ Xoá đơn hàng', callback_data: 'start:remove' },
       ],
       [{ text: '📦 Danh sách đơn hàng', callback_data: 'start:list' }],
-    ],
-  };
-  private readonly backToStartMenuReplyMarkup: TelegramInlineKeyboardMarkup = {
-    inline_keyboard: [[{ text: '⬅️ Quay lại menu', callback_data: 'start:menu' }]],
-  };
+    ];
+
+    if (env.PUBLIC_TRACKING_URL) {
+      inlineKeyboard.push([{ text: '🌐 Tra cứu trên web', url: env.PUBLIC_TRACKING_URL }]);
+    }
+
+    return { inline_keyboard: inlineKeyboard };
+  }
 
   constructor(
     private readonly service: TrackingService = trackingService,
@@ -308,8 +315,8 @@ export class TelegramService {
   }
 
   private async sendStartMessage(chatId: string): Promise<void> {
-    await this.sendMessage(chatId, telegramMessageBuilder.start(), {
-      replyMarkup: this.startMenuReplyMarkup,
+    await this.sendMessage(chatId, telegramMessageBuilder.start(env.PUBLIC_TRACKING_URL), {
+      replyMarkup: this.buildStartMenuReplyMarkup(),
     });
   }
 

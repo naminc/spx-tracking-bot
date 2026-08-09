@@ -92,6 +92,11 @@ const formatCarrier = (carrier: TrackingCarrier): string => carrierLabels[carrie
 const buildCarrierLine = (carrier: TrackingCarrier): string =>
   `\n🚚 <b>Đơn vị:</b> ${escapeHtml(formatCarrier(carrier))}`;
 
+const buildPublicTrackingLine = (publicTrackingUrl?: string): string =>
+  publicTrackingUrl
+    ? `\n\n🌐 <b>Tra cứu nhanh trên web:</b> <a href="${escapeHtml(publicTrackingUrl)}">${escapeHtml(publicTrackingUrl)}</a>\nBạn có thể nhập mã vận đơn để xem timeline mà không cần thêm vào bot trước.`
+    : '';
+
 const buildCompletedMessage = (title: string, input: TrackingMessageInput): string => `<b>${title}</b>
 ━━━━━━━━━━━━━━━━
 
@@ -117,11 +122,12 @@ const getCompletedTitle = (finalStatus: FinalStatus): string => {
 };
 
 export const telegramMessageBuilder = {
-  start(): string {
+  start(publicTrackingUrl?: string): string {
     return `<b>${truckCommandIcon} EXPRESS TRACKING BOT</b>
 ━━━━━━━━━━━━━━━━
 
 ${helloCommandIcon} Xin chào! Mình có thể giúp bạn theo dõi trạng thái đơn hàng <b>SPX/GHN/J&T</b> tự động.
+${buildPublicTrackingLine(publicTrackingUrl)}
 
 <b>${robotCommandIcon} Lệnh hỗ trợ</b>
 ━━━━━━━━━━━━━━━━

@@ -119,6 +119,14 @@ export function UsersPage() {
             type="button"
             variant="secondary"
             size="sm"
+            onClick={() => navigate(`/orders?userId=${user.id}`)}
+          >
+            Orders
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => navigate(`/tracking-history?userId=${user.id}`)}
           >
             History

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type {
   FinalStatus,
@@ -30,6 +31,7 @@ type CarrierFilter = TrackingCarrier | "";
 type CarrierInput = TrackingCarrier | "AUTO";
 const jntPhoneLast4Pattern = /^\d{4}$/;
 const numericJntTrackingNumberPattern = /^[0-9]{6,32}$/;
+const positiveIntegerPattern = /^[1-9]\d*$/;
 
 function optionalText(value: string | null | undefined) {
   return value && value.trim() ? value : "-";
@@ -95,9 +97,13 @@ function HistoryList({ carrier, trackingNumber }: { carrier: TrackingCarrier; tr
 }
 
 export function OrdersPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const userIdFromUrl = searchParams.get("userId") ?? "";
   const [carrierFilter, setCarrierFilter] = useState<CarrierFilter>("");
   const [chatFilter, setChatFilter] = useState("");
-  const [userFilter, setUserFilter] = useState("");
+  const [userFilter, setUserFilter] = useState(() =>
+    positiveIntegerPattern.test(userIdFromUrl) ? userIdFromUrl : "",
+  );
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("");
   const [trackingFilterInput, setTrackingFilterInput] = useState("");
   const [addCarrier, setAddCarrier] = useState<CarrierInput>("AUTO");
@@ -291,6 +297,7 @@ export function OrdersPage() {
     setChatFilter("");
     setUserFilter("");
     setStatusFilter("");
+    setSearchParams({}, { replace: true });
   };
 
   const tableError = error || usersQuery.error;
@@ -301,6 +308,10 @@ export function OrdersPage() {
       toast.error(tableErrorMessage, { id: "orders-filter-error" });
     }
   }, [tableErrorMessage]);
+
+  useEffect(() => {
+    setUserFilter(positiveIntegerPattern.test(userIdFromUrl) ? userIdFromUrl : "");
+  }, [userIdFromUrl]);
 
   return (
     <div className="space-y-4">

@@ -141,7 +141,9 @@ ${contactCommandIcon} <b>/contact</b> - Liên hệ admin
 ${startCommandIcon} <b>/help</b> - Xem hướng dẫn chi tiết
 
 ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
 ${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
+${exampleCommandIcon} <b>Ví dụ GHN VNGH:</b> <code>/add VNGH80667097209 Macbook Pro</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
   },
@@ -155,7 +157,9 @@ ${codeCommandIcon} <b>Cú pháp:</b> <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_
 ${codeCommandIcon} <b>Cú pháp J&T:</b> <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>
 ${noteCommandIcon} <b>Chú ý:</b> <b>&lt;ghi_chú&gt;</b> có thể để trống. Bot tự nhận diện <b>SPX/GHN</b> theo mã vận đơn. <b>J&T</b> cần thêm 4 số cuối SĐT.
 ${exampleCommandIcon} <b>SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${exampleCommandIcon} <b>SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
 ${exampleCommandIcon} <b>GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
+${exampleCommandIcon} <b>GHN VNGH:</b> <code>/add VNGH80667097209 Macbook Pro</code>
 ${exampleCommandIcon} <b>J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
 
 <b>2. Xem danh sách đang theo dõi</b>
@@ -164,6 +168,7 @@ ${listCommandIcon} <code>/list</code>
 <b>3. Xoá đơn khỏi danh sách</b>
 ${codeCommandIcon} <b>Cú pháp:</b> <code>/remove &lt;mã_vận_đơn&gt;</code>
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>
+${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/remove VN260473135399R</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
 
 <b>4. Xem đơn vị vận chuyển hỗ trợ</b>
@@ -178,12 +183,14 @@ ${contactCommandIcon} <code>/contact</code>`;
 ━━━━━━━━━━━━━━━━
 
 <b>SPX Express</b>
-🧾 <b>Định dạng:</b> <code>SPXVN...</code>
+🧾 <b>Định dạng:</b> <code>SPXVN...</code> hoặc <code>VN...</code>
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>SPXVN063015366786</code>
+${exampleCommandIcon} <b>Ví dụ hoả tốc/quốc tế:</b> <code>VN260473135399R</code>
 
 <b>Giao Hàng Nhanh - GHN</b>
 🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>GYH9PRA6</code>
+${exampleCommandIcon} <b>Ví dụ VNGH:</b> <code>VNGH80667097209</code>
 
 <b>J&T Express</b>
 🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
@@ -224,7 +231,9 @@ ${codeCommandIcon} <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú
 ${codeCommandIcon} <b>J&T: <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code></b>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống
 ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
+${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
 ${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
+${exampleCommandIcon} <b>Ví dụ GHN VNGH:</b> <code>/add VNGH80667097209 Macbook Pro</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>`;
   },
 
@@ -311,7 +320,9 @@ ${chartCommandIcon} <b>Tổng cộng:</b> ${escapeHtml(orders.length)} đơn`;
 ━━━━━━━━━━━━━━━━
 
 ${codeCommandIcon} <b>Lệnh mẫu:</b> <code>/add SPXVN063015366786</code>
+${codeCommandIcon} <b>Lệnh mẫu SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R</code>
 ${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add GYH9PRA6</code>
+${codeCommandIcon} <b>Lệnh mẫu GHN VNGH:</b> <code>/add VNGH80667097209</code>
 ${codeCommandIcon} <b>Lệnh mẫu J&T:</b> <code>/add jnt 862195772225 9613</code>`;
   },
 
@@ -330,6 +341,7 @@ ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn cầ
 ${codeCommandIcon} <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b>
 ${codeCommandIcon} <b>J&T: <code>/remove jnt &lt;mã_vận_đơn&gt;</code></b>
  ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>
+${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/remove VN260473135399R</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>`;
   },
 
@@ -337,8 +349,8 @@ ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
     return `<b>❌ Mã vận đơn không hợp lệ</b>
 ━━━━━━━━━━━━━━━━
 
-🧾 <b>Định dạng SPX:</b> <code>SPXVN063015366786</code>
-🧾 <b>Định dạng GHN:</b> <code>GYH9PRA6</code>
+🧾 <b>Định dạng SPX:</b> <code>SPXVN063015366786</code> hoặc <code>VN260473135399R</code>
+🧾 <b>Định dạng GHN:</b> <code>GYH9PRA6</code> hoặc <code>VNGH80667097209</code>
 🧾 <b>Định dạng J&T:</b> <code>/add jnt 862195772225 9613</code>
 🔁 <b>Gợi ý:</b> Vui lòng kiểm tra lại và gửi lại mã đúng.`;
   },

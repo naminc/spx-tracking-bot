@@ -184,7 +184,7 @@ export function PublicTrackingPage() {
             </div>
             <Input
               label="Mã vận đơn"
-              placeholder="SPXVN063015366786, GYH9PRA6, 862195772225"
+              placeholder="SPXVN063015366786, VN260473135399R, VNGH80667097209, 862195772225"
               value={trackingNumber}
               onChange={(event) => setTrackingNumber(event.target.value)}
               autoComplete="off"

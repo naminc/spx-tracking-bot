@@ -6,10 +6,16 @@ export const TrackingCarrier = {
 
 export type TrackingCarrier = (typeof TrackingCarrier)[keyof typeof TrackingCarrier];
 
-const spxTrackingNumberPattern = /^SPXVN[A-Z0-9]{6,40}$/i;
+const spxLegacyTrackingNumberPattern = /^SPXVN[A-Z0-9]{6,40}$/i;
+const spxExpressOrInternationalPattern = /^VN(?!GH)[A-Z0-9]{8,40}$/i;
+const ghnPrefixedTrackingNumberPattern = /^VNGH[A-Z0-9]{4,28}$/i;
 const ghnTrackingNumberPattern = /^[A-Z0-9]{6,32}$/i;
 const jntAutoTrackingNumberPattern = /^[0-9]{6,32}$/;
 const jntTrackingNumberPattern = /^[A-Z0-9]{6,32}$/i;
+
+const isSpxTrackingNumber = (trackingNumber: string): boolean =>
+  spxLegacyTrackingNumberPattern.test(trackingNumber) ||
+  spxExpressOrInternationalPattern.test(trackingNumber);
 
 export const normalizeTrackingNumber = (trackingNumber: string): string =>
   trackingNumber.trim().toUpperCase();
@@ -24,10 +30,15 @@ export const detectTrackingCarrier = (
     return carrierHint;
   }
 
-  if (normalizedTrackingNumber.startsWith('SPXVN')) {
-    return spxTrackingNumberPattern.test(normalizedTrackingNumber)
-      ? TrackingCarrier.SPX
-      : null;
+  if (ghnPrefixedTrackingNumberPattern.test(normalizedTrackingNumber)) {
+    return TrackingCarrier.GHN;
+  }
+
+  if (
+    normalizedTrackingNumber.startsWith('SPXVN') ||
+    normalizedTrackingNumber.startsWith('VN')
+  ) {
+    return isSpxTrackingNumber(normalizedTrackingNumber) ? TrackingCarrier.SPX : null;
   }
 
   if (jntAutoTrackingNumberPattern.test(normalizedTrackingNumber)) {
@@ -48,7 +59,7 @@ export const isValidTrackingNumberForCarrier = (
   const normalizedTrackingNumber = normalizeTrackingNumber(trackingNumber);
 
   if (carrier === TrackingCarrier.SPX) {
-    return spxTrackingNumberPattern.test(normalizedTrackingNumber);
+    return isSpxTrackingNumber(normalizedTrackingNumber);
   }
 
   if (carrier === TrackingCarrier.JNT) {

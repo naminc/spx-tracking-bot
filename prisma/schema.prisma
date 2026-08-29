@@ -51,7 +51,7 @@ model TrackingOrder {
   userId            Int?
   user              User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
   note              String?                  @db.VarChar(512)
-  trackingCredential String?                 @db.VarChar(32)
+  trackingCredential String?                 @db.VarChar(128)
   currentStatus     String                   @db.VarChar(512)
   currentStatusCode String                   @db.VarChar(128)
   currentLocation   String?                  @db.VarChar(255)

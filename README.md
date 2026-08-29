@@ -59,7 +59,9 @@ JNT_TRACKING_REFERER=https://jtexpress.vn/vi/tracking
 JNT_REQUEST_TIMEOUT_MS=15000
 ```
 
-J&T tracking requires the phone last 4 digits. Store it in `TrackingOrder.trackingCredential`; API responses only expose a masked value.
+GHN tracking requires the recipient phone or a 64-character `phone_verify`; the app stores only the generated/normalized hash in `TrackingOrder.trackingCredential`.
+J&T tracking requires the phone last 4 digits and stores that value in `TrackingOrder.trackingCredential`.
+API responses only expose a masked credential value.
 
 ## Frontend API URL
 
@@ -141,11 +143,11 @@ Create request:
   "trackingNumber": "SPXVN063015366786",
   "telegramChatId": "api",
   "note": "Optional note",
-  "trackingCredential": "9613"
+  "trackingCredential": "0987654321"
 }
 ```
 
-Only send `trackingCredential` for J&T orders.
+Send `trackingCredential` for GHN and J&T orders. For GHN this can be the recipient phone number or an existing `phone_verify`; for J&T it must be the phone last 4 digits.
 
 Delete request can include the chat id as query string:
 
@@ -194,7 +196,7 @@ Commands:
 - `/start`
 - `/help`
 - `/add SPXVNxxxx`
-- `/add GYH9PRA6 optional note`
+- `/add ghn GYH9PRA6 0987654321 optional note`
 - `/add jnt 862195772225 9613 optional note`
 - `/list`
 - `/remove SPXVNxxxx`

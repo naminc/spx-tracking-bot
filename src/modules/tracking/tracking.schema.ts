@@ -45,7 +45,8 @@ export const orderNoteSchema = z
 export const trackingCredentialSchema = z
   .string()
   .trim()
-  .regex(/^\d{4}$/, 'J&T phone last 4 must contain exactly 4 digits')
+  .min(1)
+  .max(128, 'Tracking credential is too long')
   .optional();
 
 export const createTrackingOrderSchema = z.object({

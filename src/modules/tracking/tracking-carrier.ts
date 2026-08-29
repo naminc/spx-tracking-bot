@@ -17,6 +17,14 @@ const isSpxTrackingNumber = (trackingNumber: string): boolean =>
   spxLegacyTrackingNumberPattern.test(trackingNumber) ||
   spxExpressOrInternationalPattern.test(trackingNumber);
 
+const isGhnTrackingNumber = (trackingNumber: string): boolean =>
+  ghnPrefixedTrackingNumberPattern.test(trackingNumber) ||
+  (
+    ghnTrackingNumberPattern.test(trackingNumber) &&
+    !isSpxTrackingNumber(trackingNumber) &&
+    !jntAutoTrackingNumberPattern.test(trackingNumber)
+  );
+
 export const normalizeTrackingNumber = (trackingNumber: string): string =>
   trackingNumber.trim().toUpperCase();
 
@@ -45,7 +53,7 @@ export const detectTrackingCarrier = (
     return TrackingCarrier.JNT;
   }
 
-  if (ghnTrackingNumberPattern.test(normalizedTrackingNumber)) {
+  if (isGhnTrackingNumber(normalizedTrackingNumber)) {
     return TrackingCarrier.GHN;
   }
 
@@ -66,5 +74,5 @@ export const isValidTrackingNumberForCarrier = (
     return jntTrackingNumberPattern.test(normalizedTrackingNumber);
   }
 
-  return ghnTrackingNumberPattern.test(normalizedTrackingNumber);
+  return isGhnTrackingNumber(normalizedTrackingNumber);
 };

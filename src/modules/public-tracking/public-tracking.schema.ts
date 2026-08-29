@@ -17,7 +17,7 @@ export const publicTrackSchema = z.object({
     .min(6, 'Tracking number is too short')
     .max(64, 'Tracking number is too long')
     .transform(normalizeTrackingNumber),
-  trackingCredential: z.string().trim().regex(/^\d{4}$/, 'J&T phone last 4 must contain exactly 4 digits').optional(),
+  trackingCredential: z.string().trim().min(1).max(128, 'Tracking credential is too long').optional(),
 });
 
 export type PublicTrackInput = z.infer<typeof publicTrackSchema>;

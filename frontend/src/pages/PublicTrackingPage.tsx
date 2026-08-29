@@ -4,11 +4,14 @@ import { TrackingTimeline } from "../components/public/TrackingTimeline";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { formatDate } from "../lib/format";
+import {
+  isValidGhnCredential,
+  isValidJntCredential,
+  shouldUseGhnCredential,
+  shouldUseJntCredential,
+} from "../lib/tracking-credential";
 import type { PublicTrackingCarrierInput, PublicTrackingResult } from "../lib/types/public-tracking";
 import { usePublicTracking } from "../hooks/usePublicTracking";
-
-const numericJntTrackingNumberPattern = /^[0-9]{6,32}$/;
-const jntPhoneLast4Pattern = /^\d{4}$/;
 
 const finalStatusMap = {
   PENDING: { label: "Đang xử lý", className: "bg-amber-50 text-amber-700 ring-amber-200" },
@@ -93,16 +96,25 @@ export function PublicTrackingPage() {
   const trackMutation = usePublicTracking();
   const telegramBotUrl = import.meta.env.VITE_TELEGRAM_BOT_URL as string | undefined;
   const normalizedTrackingNumber = trackingNumber.trim().toUpperCase();
-  const shouldShowJntCredential =
-    carrier === "JNT" || (carrier === "AUTO" && numericJntTrackingNumberPattern.test(normalizedTrackingNumber));
+  const shouldShowGhnCredential = shouldUseGhnCredential(carrier, normalizedTrackingNumber);
+  const shouldShowJntCredential = shouldUseJntCredential(carrier, normalizedTrackingNumber);
+  const shouldShowTrackingCredential = shouldShowGhnCredential || shouldShowJntCredential;
+  const trackingCredentialLabel = shouldShowGhnCredential ? "SĐT người nhận / phone verify" : "4 số cuối SĐT";
+  const trackingCredentialPlaceholder = shouldShowGhnCredential
+    ? "0987654321 hoặc 64-hex phone_verify"
+    : "9613";
 
   const helperText = useMemo(() => {
+    if (shouldShowGhnCredential) {
+      return "GHN cần SĐT người nhận hoặc phone_verify để tra cứu.";
+    }
+
     if (shouldShowJntCredential) {
       return "J&T cần 4 số cuối SĐT để tra cứu.";
     }
 
-    return "SPX và GHN có thể tra cứu trực tiếp bằng mã vận đơn.";
-  }, [shouldShowJntCredential]);
+    return "SPX có thể tra cứu trực tiếp bằng mã vận đơn.";
+  }, [shouldShowGhnCredential, shouldShowJntCredential]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -114,8 +126,13 @@ export function PublicTrackingPage() {
 
     const normalizedCredential = trackingCredential.trim();
 
-    if (shouldShowJntCredential && !jntPhoneLast4Pattern.test(normalizedCredential)) {
+    if (shouldShowJntCredential && !isValidJntCredential(normalizedCredential)) {
       toast.error("J&T cần đúng 4 số cuối SĐT");
+      return;
+    }
+
+    if (shouldShowGhnCredential && !isValidGhnCredential(normalizedCredential)) {
+      toast.error("GHN cần SĐT người nhận hoặc phone_verify 64 ký tự");
       return;
     }
 
@@ -123,7 +140,7 @@ export function PublicTrackingPage() {
       const nextResult = await trackMutation.mutateAsync({
         carrier,
         trackingNumber: normalizedTrackingNumber,
-        trackingCredential: shouldShowJntCredential ? normalizedCredential : undefined,
+        trackingCredential: shouldShowTrackingCredential ? normalizedCredential : undefined,
       });
       setResult(nextResult);
     } catch (error) {
@@ -161,7 +178,7 @@ export function PublicTrackingPage() {
         <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div
             className={
-              shouldShowJntCredential
+              shouldShowTrackingCredential
                 ? "grid gap-3 md:grid-cols-[170px_minmax(0,1fr)_180px_auto] md:items-end"
                 : "grid gap-3 md:grid-cols-[170px_minmax(0,1fr)_auto] md:items-end"
             }
@@ -189,14 +206,20 @@ export function PublicTrackingPage() {
               onChange={(event) => setTrackingNumber(event.target.value)}
               autoComplete="off"
             />
-            {shouldShowJntCredential && (
+            {shouldShowTrackingCredential && (
               <Input
-                label="4 số cuối SĐT"
-                placeholder="9613"
+                label={trackingCredentialLabel}
+                placeholder={trackingCredentialPlaceholder}
                 value={trackingCredential}
-                onChange={(event) => setTrackingCredential(event.target.value.replace(/\D/g, "").slice(0, 4))}
-                maxLength={4}
-                inputMode="numeric"
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setTrackingCredential(
+                    shouldShowJntCredential ? nextValue.replace(/\D/g, "").slice(0, 4) : nextValue,
+                  );
+                }}
+                maxLength={shouldShowGhnCredential ? 128 : 4}
+                inputMode={shouldShowGhnCredential ? "tel" : "numeric"}
+                autoComplete="off"
               />
             )}
             <Button type="submit" loading={trackMutation.isPending} className="h-10 px-5">

@@ -2,6 +2,10 @@ import axios, { AxiosError } from 'axios';
 import { trackingProviderConfig } from '../../config/tracking-providers';
 import { AppError } from '../../shared/errors/app-error';
 import { logger } from '../../shared/logger/logger';
+import {
+  maskTrackingCredential,
+  normalizeGhnTrackingCredential,
+} from '../tracking/tracking-credential';
 import { TrackingCarrier } from '../tracking/tracking-carrier';
 import type { NormalizedTrackingRecord } from '../tracking/tracking-record';
 
@@ -33,6 +37,7 @@ type GhnOrderInfo = {
 
 type GhnApiResponse = {
   code?: number;
+  code_message?: string;
   message?: string;
   data?: {
     order_info?: GhnOrderInfo | null;
@@ -100,8 +105,11 @@ const isNarrativeAddress = (address: string): boolean => {
 };
 
 export class GhnService {
-  async getLatestTrackingRecord(trackingNumber: string): Promise<NormalizedTrackingRecord> {
-    const records = await this.getTrackingRecords(trackingNumber);
+  async getLatestTrackingRecord(
+    trackingNumber: string,
+    trackingCredential?: string | null,
+  ): Promise<NormalizedTrackingRecord> {
+    const records = await this.getTrackingRecords(trackingNumber, trackingCredential);
     const latestRecord = records[0];
 
     if (!latestRecord) {
@@ -111,8 +119,17 @@ export class GhnService {
     return latestRecord;
   }
 
-  async getTrackingRecords(trackingNumber: string): Promise<NormalizedTrackingRecord[]> {
-    const response = await this.getTrackingResponse(trackingNumber);
+  async getTrackingRecords(
+    trackingNumber: string,
+    trackingCredential?: string | null,
+  ): Promise<NormalizedTrackingRecord[]> {
+    const phoneVerify = normalizeGhnTrackingCredential(trackingNumber, trackingCredential);
+
+    if (!phoneVerify) {
+      throw new AppError('GHN cần SĐT người nhận hoặc phone_verify để tra cứu', 400);
+    }
+
+    const response = await this.getTrackingResponse(trackingNumber, phoneVerify);
     const orderInfo = response.data?.order_info ?? null;
     const logs = response.data?.tracking_logs ?? [];
     const sortedLogs = [...logs]
@@ -128,14 +145,22 @@ export class GhnService {
       throw new AppError('GHN did not return tracking logs for this order', 404);
     }
 
-    return sortedLogs.map((log) => this.normalizeRecord(trackingNumber, log, orderInfo, sortedLogs));
+    return sortedLogs.map((log) =>
+      this.normalizeRecord(trackingNumber, log, orderInfo, sortedLogs, phoneVerify),
+    );
   }
 
-  private async getTrackingResponse(trackingNumber: string): Promise<GhnApiResponse> {
+  private async getTrackingResponse(
+    trackingNumber: string,
+    phoneVerify: string,
+  ): Promise<GhnApiResponse> {
     try {
       const response = await axios.post<GhnApiResponse>(
         trackingProviderConfig.ghn.trackingLogsUrl,
-        { order_code: trackingNumber },
+        {
+          order_code: trackingNumber,
+          phone_verify: phoneVerify,
+        },
         {
           headers: trackingProviderConfig.ghn.headers,
           timeout: trackingProviderConfig.ghn.requestTimeoutMs,
@@ -143,6 +168,16 @@ export class GhnService {
       );
 
       if (response.data.code !== 200) {
+        if (
+          response.data.code_message === 'PHONE_VERIFY_REQUIRED' ||
+          response.data.code_message === 'PHONE_VERIFY_FAIL'
+        ) {
+          throw new AppError(
+            'SĐT người nhận hoặc phone_verify GHN không chính xác',
+            400,
+          );
+        }
+
         throw new AppError(
           response.data.message || 'GHN did not return a successful response',
           502,
@@ -157,8 +192,20 @@ export class GhnService {
       }
 
       const statusCode = error instanceof AxiosError ? error.response?.status : undefined;
-      logger.warn({ err: error, statusCode, trackingNumber }, 'GHN request failed');
-      throw new AppError('Could not fetch order information from GHN', 502, error);
+      const responseData = error instanceof AxiosError ? error.response?.data as GhnApiResponse | undefined : undefined;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn(
+        {
+          err: { message: errorMessage },
+          statusCode,
+          ghnCodeMessage: responseData?.code_message,
+          ghnMessage: responseData?.message,
+          trackingNumber,
+          trackingCredential: maskTrackingCredential(TrackingCarrier.GHN, phoneVerify),
+        },
+        'GHN request failed',
+      );
+      throw new AppError('Could not fetch order information from GHN', 502);
     }
   }
 
@@ -167,6 +214,7 @@ export class GhnService {
     log: GhnTrackingLog,
     orderInfo: GhnOrderInfo | null,
     sortedLogs: GhnTrackingLog[],
+    phoneVerify: string,
   ): NormalizedTrackingRecord {
     const trackingCode =
       toRequiredString(log.action_code) ||
@@ -204,6 +252,7 @@ export class GhnService {
         order_info: orderInfo,
         tracking_log: log,
         location_mapping: parsedLocation,
+        phone_verify: maskTrackingCredential(TrackingCarrier.GHN, phoneVerify),
       },
     };
   }

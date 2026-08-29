@@ -1,9 +1,17 @@
 import axios, { AxiosError } from 'axios';
 import { env } from '../../config/env';
+import { AppError } from '../../shared/errors/app-error';
 import { logger } from '../../shared/logger/logger';
 import { FinalStatus } from '../tracking/final-status';
 import { MAX_ORDER_NOTE_LENGTH, trackingNumberSchema } from '../tracking/tracking.schema';
-import { TrackingCarrier } from '../tracking/tracking-carrier';
+import {
+  TrackingCarrier,
+  detectTrackingCarrier,
+} from '../tracking/tracking-carrier';
+import {
+  isValidGhnTrackingCredential,
+  maskTrackingCredential,
+} from '../tracking/tracking-credential';
 import {
   TrackingNotification,
   TrackingService,
@@ -428,12 +436,27 @@ export class TelegramService {
     }
 
     const { carrier, trackingNumber: rawTrackingNumber, trackingCredential, note } = parsedCommand;
+    const detectedCarrier = detectTrackingCarrier(rawTrackingNumber, carrier);
 
     if (
       !trackingCredential &&
       (carrier === TrackingCarrier.JNT || numericJntTrackingNumberPattern.test(rawTrackingNumber))
     ) {
       await this.sendMessage(chatId, telegramMessageBuilder.invalidJntCredential());
+      return;
+    }
+
+    if (!trackingCredential && detectedCarrier === TrackingCarrier.GHN) {
+      await this.sendMessage(chatId, telegramMessageBuilder.invalidGhnCredential());
+      return;
+    }
+
+    if (
+      trackingCredential &&
+      detectedCarrier === TrackingCarrier.GHN &&
+      !isValidGhnTrackingCredential(rawTrackingNumber, trackingCredential)
+    ) {
+      await this.sendMessage(chatId, telegramMessageBuilder.invalidGhnCredential());
       return;
     }
 
@@ -473,7 +496,7 @@ export class TelegramService {
             alreadyExists: true,
             note: note ?? null,
             noteUpdated: result.noteUpdated,
-            trackingCredential: result.order.trackingCredential ? '****' : null,
+            trackingCredential: maskTrackingCredential(result.order.carrier, result.order.trackingCredential),
           },
         });
         await this.sendMessage(
@@ -505,7 +528,7 @@ export class TelegramService {
           carrier: result.order.carrier,
           alreadyExists: false,
           note: note ?? null,
-          trackingCredential: result.order.trackingCredential ? '****' : null,
+          trackingCredential: maskTrackingCredential(result.order.carrier, result.order.trackingCredential),
         },
       });
       await this.sendMessage(chatId, telegramMessageBuilder.addSuccess(result));
@@ -527,6 +550,15 @@ export class TelegramService {
       }
     } catch (error) {
       logger.error({ err: error, chatId, rawTrackingNumber: parsed.data }, 'Failed to add Telegram tracking order');
+      if (
+        detectedCarrier === TrackingCarrier.GHN &&
+        error instanceof AppError &&
+        error.statusCode === 400
+      ) {
+        await this.sendMessage(chatId, telegramMessageBuilder.invalidGhnCredential());
+        return;
+      }
+
       await this.sendMessage(chatId, telegramMessageBuilder.spxError(parsed.data));
     }
   }
@@ -591,7 +623,13 @@ export class TelegramService {
     cursor += 1;
     let trackingCredential: string | undefined;
 
-    if (carrier === TrackingCarrier.JNT) {
+    if (carrier === TrackingCarrier.GHN) {
+      trackingCredential = tokens[cursor];
+
+      if (trackingCredential) {
+        cursor += 1;
+      }
+    } else if (carrier === TrackingCarrier.JNT) {
       trackingCredential = tokens[cursor];
 
       if (!trackingCredential || !jntPhoneLast4Pattern.test(trackingCredential)) {
@@ -609,6 +647,14 @@ export class TelegramService {
       jntPhoneLast4Pattern.test(tokens[cursor] ?? '')
     ) {
       carrier = TrackingCarrier.JNT;
+      trackingCredential = tokens[cursor];
+      cursor += 1;
+    } else if (
+      carrier === 'AUTO' &&
+      detectTrackingCarrier(trackingNumber) === TrackingCarrier.GHN &&
+      isValidGhnTrackingCredential(trackingNumber, tokens[cursor])
+    ) {
+      carrier = TrackingCarrier.GHN;
       trackingCredential = tokens[cursor];
       cursor += 1;
     }
@@ -650,11 +696,33 @@ export class TelegramService {
       includeCompleted: false,
     });
 
-    await this.sendMessage(
-      chatId,
-      orders.length > 0 ? telegramMessageBuilder.list(orders) : telegramMessageBuilder.emptyList(),
-      options,
-    );
+    if (orders.length === 0) {
+      await this.sendMessage(
+        chatId,
+        telegramMessageBuilder.emptyList(),
+        options,
+      );
+      return;
+    }
+
+    const pageSize = 10;
+    const totalPages = Math.ceil(orders.length / pageSize);
+
+    for (let page = 1; page <= totalPages; page++) {
+      const start = (page - 1) * pageSize;
+      const pageOrders = orders.slice(start, start + pageSize);
+      const isLastPage = page === totalPages;
+
+      await this.sendMessage(
+        chatId,
+        telegramMessageBuilder.list(pageOrders, {
+          page,
+          totalPages,
+          totalOrders: orders.length,
+        }),
+        isLastPage ? options : {},
+      );
+    }
   }
 }
 

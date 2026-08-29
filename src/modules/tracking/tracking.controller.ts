@@ -9,11 +9,12 @@ import {
 import type { FinalStatus } from './final-status';
 import { TrackingService, trackingService } from './tracking.service';
 import type { TrackingCarrier } from './tracking-carrier';
+import { maskTrackingCredential } from './tracking-credential';
 import type { TrackingOrderEntity } from './tracking.repository';
 
 const toPublicTrackingOrder = (order: TrackingOrderEntity) => ({
   ...order,
-  trackingCredential: order.trackingCredential ? '****' : null,
+  trackingCredential: maskTrackingCredential(order.carrier, order.trackingCredential),
 });
 
 export class TrackingController {
@@ -106,7 +107,7 @@ export class TrackingController {
         alreadyExists: result.alreadyExists,
         note: result.order.note,
         noteUpdated: result.noteUpdated,
-        trackingCredential: result.order.trackingCredential ? '****' : null,
+        trackingCredential: maskTrackingCredential(result.order.carrier, result.order.trackingCredential),
       },
     });
 

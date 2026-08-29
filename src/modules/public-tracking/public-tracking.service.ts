@@ -51,6 +51,10 @@ export class PublicTrackingService {
       throw new AppError('J&T cần 4 số cuối SĐT để tra cứu', 400);
     }
 
+    if (carrier === TrackingCarrier.GHN && !input.trackingCredential) {
+      throw new AppError('GHN cần SĐT người nhận hoặc phone_verify để tra cứu', 400);
+    }
+
     const records = await this.safeGetTrackingRecords(
       carrier,
       input.trackingNumber,
@@ -101,7 +105,7 @@ export class PublicTrackingService {
     trackingCredential?: string,
   ): Promise<NormalizedTrackingRecord[]> {
     if (carrier === TrackingCarrier.GHN) {
-      return this.ghn.getTrackingRecords(trackingNumber);
+      return this.ghn.getTrackingRecords(trackingNumber, trackingCredential);
     }
 
     if (carrier === TrackingCarrier.JNT) {

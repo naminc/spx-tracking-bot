@@ -132,6 +132,7 @@ ${buildPublicTrackingLine(publicTrackingUrl)}
 <b>${robotCommandIcon} Lệnh hỗ trợ</b>
 ━━━━━━━━━━━━━━━━
 ${addCommandIcon} <b>/add &lt;mã vận đơn&gt; &lt;ghi chú&gt;</b> - Thêm đơn hàng cần theo dõi
+${addCommandIcon} <b>/add ghn &lt;mã vận đơn&gt; &lt;SĐT người nhận&gt; &lt;ghi chú&gt;</b> - Thêm đơn <b>GHN</b>
 ${addCommandIcon} <b>/add jnt &lt;mã vận đơn&gt; &lt;4 số cuối SĐT&gt; &lt;ghi chú&gt;</b> - Thêm đơn <b>J&T</b>
 ${listCommandIcon} <b>/list</b> - Xem danh sách đơn đang theo dõi
 ${removeCommandIcon} <b>/remove &lt;mã vận đơn&gt;</b> - Xoá đơn khỏi danh sách
@@ -142,8 +143,7 @@ ${startCommandIcon} <b>/help</b> - Xem hướng dẫn chi tiết
 
 ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
 ${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
-${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
-${exampleCommandIcon} <b>Ví dụ GHN VNGH:</b> <code>/add VNGH80667097209 Macbook Pro</code>
+${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add ghn GY8RA4EL 0987654321 Hàng khách A</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
   },
@@ -154,12 +154,12 @@ ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
 
 <b>1. Thêm đơn theo dõi</b>
 ${codeCommandIcon} <b>Cú pháp:</b> <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>
+${codeCommandIcon} <b>Cú pháp GHN:</b> <code>/add ghn &lt;mã_vận_đơn&gt; &lt;SĐT_người_nhận&gt; &lt;ghi_chú&gt;</code>
 ${codeCommandIcon} <b>Cú pháp J&T:</b> <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>
-${noteCommandIcon} <b>Chú ý:</b> <b>&lt;ghi_chú&gt;</b> có thể để trống. Bot tự nhận diện <b>SPX/GHN</b> theo mã vận đơn. <b>J&T</b> cần thêm 4 số cuối SĐT.
+${noteCommandIcon} <b>Chú ý:</b> <b>&lt;ghi_chú&gt;</b> có thể để trống. Bot tự nhận diện <b>SPX</b> theo mã vận đơn. <b>GHN</b> cần SĐT người nhận. <b>J&T</b> cần thêm 4 số cuối SĐT.
 ${exampleCommandIcon} <b>SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
 ${exampleCommandIcon} <b>SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
-${exampleCommandIcon} <b>GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
-${exampleCommandIcon} <b>GHN VNGH:</b> <code>/add VNGH80667097209 Macbook Pro</code>
+${exampleCommandIcon} <b>GHN:</b> <code>/add ghn GY8RA4EL 0987654321 Hàng khách A</code>
 ${exampleCommandIcon} <b>J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
 
 <b>2. Xem danh sách đang theo dõi</b>
@@ -189,15 +189,15 @@ ${exampleCommandIcon} <b>Ví dụ hoả tốc/quốc tế:</b> <code>VN260473135
 
 <b>Giao Hàng Nhanh - GHN</b>
 🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
-${exampleCommandIcon} <b>Ví dụ:</b> <code>GYH9PRA6</code>
-${exampleCommandIcon} <b>Ví dụ VNGH:</b> <code>VNGH80667097209</code>
+${exampleCommandIcon} <b>Ví dụ:</b> <code>GY8RA4EL</code>
+${noteCommandIcon} <b>Lưu ý:</b> <b>GHN</b> cần SĐT người nhận để tra cứu.
 
 <b>J&T Express</b>
 🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>862195772225</code>
 ${noteCommandIcon} <b>Lưu ý:</b> <b>J&T</b> cần 4 số cuối SĐT để tra cứu.
 
-${startCommandIcon} <b>Cách dùng:</b> <b>SPX/GHN</b> dùng <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>. <b>J&T</b> dùng <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>.`;
+${startCommandIcon} <b>Cách dùng:</b> <b>SPX</b> dùng <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>. <b>GHN</b> dùng <code>/add ghn &lt;mã_vận_đơn&gt; &lt;SĐT_người_nhận&gt; &lt;ghi_chú&gt;</code>. <b>J&T</b> dùng <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>.`;
   },
 
   contact(adminUsername: string): string {
@@ -228,12 +228,12 @@ Tài khoản của bạn hiện không thể sử dụng chức năng theo dõi.
 
 ${startCommandIcon} <b>Hướng dẫn:</b> Vui lòng nhập mã vận đơn ngay sau lệnh <b>/add</b>.
 ${codeCommandIcon} <b>Cú pháp: <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code></b>
+${codeCommandIcon} <b>GHN: <code>/add ghn &lt;mã_vận_đơn&gt; &lt;SĐT_người_nhận&gt; &lt;ghi_chú&gt;</code></b>
 ${codeCommandIcon} <b>J&T: <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code></b>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống
 ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
 ${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
-${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add GYH9PRA6 Macbook Pro</code>
-${exampleCommandIcon} <b>Ví dụ GHN VNGH:</b> <code>/add VNGH80667097209 Macbook Pro</code>
+${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add ghn GY8RA4EL 0987654321 Hàng khách A</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>`;
   },
 
@@ -298,21 +298,31 @@ ${statusCommandIcon} <b>Trạng thái:</b> ${escapeHtml(input.status)}
 ${timeCommandIcon} <b>Thời gian:</b> ${escapeHtml(formatDate(input.eventTime))}`;
   },
 
-  list(orders: OrderListItem[]): string {
+  list(
+    orders: OrderListItem[],
+    options?: { page?: number; totalPages?: number; totalOrders?: number },
+  ): string {
+    const startIndex = options?.page && options.page > 1 ? (options.page - 1) * 10 : 0;
     const orderItems = orders
       .map(
-        (order, index) => `<b>${index + 1}. 📦 <code>${escapeHtml(order.trackingNumber)}</code></b>${buildCarrierLine(order.carrier)}${buildNoteLine(order.note)}
+        (order, index) => `<b>${startIndex + index + 1}. 📦 <code>${escapeHtml(order.trackingNumber)}</code></b>${buildCarrierLine(order.carrier)}${buildNoteLine(order.note)}
 ${statusCommandIcon} <b>Trạng thái:</b> ${escapeHtml(order.currentStatus)}
 ${timeCommandIcon} <b>Thời gian:</b> ${escapeHtml(formatDate(order.lastEventTime))}`,
       )
       .join('\n\n');
 
-    return `<b>${listCommandIcon} Danh sách đơn đang theo dõi</b>
+    const totalCount = options?.totalOrders ?? orders.length;
+    const pageInfo =
+      options?.page && options?.totalPages && options.totalPages > 1
+        ? ` (trang ${options.page}/${options.totalPages})`
+        : '';
+
+    return `<b>${listCommandIcon} Danh sách đơn đang theo dõi${pageInfo}</b>
 ━━━━━━━━━━━━━━━━
 
 ${orderItems}
 
-${chartCommandIcon} <b>Tổng cộng:</b> ${escapeHtml(orders.length)} đơn`;
+${chartCommandIcon} <b>Tổng cộng:</b> ${escapeHtml(totalCount)} đơn`;
   },
 
   emptyList(): string {
@@ -321,8 +331,7 @@ ${chartCommandIcon} <b>Tổng cộng:</b> ${escapeHtml(orders.length)} đơn`;
 
 ${codeCommandIcon} <b>Lệnh mẫu:</b> <code>/add SPXVN063015366786</code>
 ${codeCommandIcon} <b>Lệnh mẫu SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R</code>
-${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add GYH9PRA6</code>
-${codeCommandIcon} <b>Lệnh mẫu GHN VNGH:</b> <code>/add VNGH80667097209</code>
+${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add ghn GY8RA4EL 0987654321</code>
 ${codeCommandIcon} <b>Lệnh mẫu J&T:</b> <code>/add jnt 862195772225 9613</code>`;
   },
 
@@ -350,7 +359,7 @@ ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
 ━━━━━━━━━━━━━━━━
 
 🧾 <b>Định dạng SPX:</b> <code>SPXVN063015366786</code> hoặc <code>VN260473135399R</code>
-🧾 <b>Định dạng GHN:</b> <code>GYH9PRA6</code> hoặc <code>VNGH80667097209</code>
+🧾 <b>Định dạng GHN:</b> <code>/add ghn GY8RA4EL 0987654321</code>
 🧾 <b>Định dạng J&T:</b> <code>/add jnt 862195772225 9613</code>
 🔁 <b>Gợi ý:</b> Vui lòng kiểm tra lại và gửi lại mã đúng.`;
   },
@@ -361,6 +370,15 @@ ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
 
 🧾 <b>Cú pháp J&T:</b> <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>`;
+  },
+
+  invalidGhnCredential(): string {
+    return `<b>❌ Thiếu SĐT người nhận GHN</b>
+━━━━━━━━━━━━━━━━
+
+🧾 <b>Cú pháp GHN:</b> <code>/add ghn &lt;mã_vận_đơn&gt; &lt;SĐT_người_nhận&gt; &lt;ghi_chú&gt;</code>
+${exampleCommandIcon} <b>Ví dụ:</b> <code>/add ghn GY8RA4EL 0987654321 Hàng khách A</code>
+${noteCommandIcon} <b>Lưu ý:</b> Nếu đã có <code>phone_verify</code> 64 ký tự, bạn cũng có thể dùng thay SĐT.`;
   },
 
   noteTooLong(maxLength: number): string {

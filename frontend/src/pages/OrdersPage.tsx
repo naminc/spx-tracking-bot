@@ -10,6 +10,12 @@ import type {
 } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
 import {
+  isValidGhnCredential,
+  isValidJntCredential,
+  shouldUseGhnCredential,
+  shouldUseJntCredential,
+} from "../lib/tracking-credential";
+import {
   useCreateTrackingOrder,
   useDeleteTrackingOrder,
   useTrackingHistories,
@@ -29,8 +35,6 @@ const maxOrderNoteLength = 512;
 type OrderStatusFilter = FinalStatus | "";
 type CarrierFilter = TrackingCarrier | "";
 type CarrierInput = TrackingCarrier | "AUTO";
-const jntPhoneLast4Pattern = /^\d{4}$/;
-const numericJntTrackingNumberPattern = /^[0-9]{6,32}$/;
 const positiveIntegerPattern = /^[1-9]\d*$/;
 
 function optionalText(value: string | null | undefined) {
@@ -113,6 +117,7 @@ export function OrdersPage() {
   const [trackingCredential, setTrackingCredential] = useState("");
   const [note, setNote] = useState("");
   const [historyOrder, setHistoryOrder] = useState<TrackingOrder | null>(null);
+  const normalizedAddTrackingNumber = trackingNumber.trim().toUpperCase();
   const normalizedTrackingFilter = trackingFilterInput.trim().toUpperCase();
   const normalizedChatFilter = chatFilter.trim();
   const { data = [], isLoading, isFetching, error, refetch } = useTrackingOrders({
@@ -127,8 +132,13 @@ export function OrdersPage() {
   const createOrder = useCreateTrackingOrder();
   const deleteOrder = useDeleteTrackingOrder();
   const tableResetKey = `${carrierFilter}|${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}`;
-  const shouldShowJntCredential =
-    addCarrier === "JNT" || (addCarrier === "AUTO" && numericJntTrackingNumberPattern.test(trackingNumber.trim()));
+  const shouldShowGhnCredential = shouldUseGhnCredential(addCarrier, normalizedAddTrackingNumber);
+  const shouldShowJntCredential = shouldUseJntCredential(addCarrier, normalizedAddTrackingNumber);
+  const shouldShowTrackingCredential = shouldShowGhnCredential || shouldShowJntCredential;
+  const trackingCredentialLabel = shouldShowGhnCredential ? "Recipient phone / phone verify" : "Phone last 4";
+  const trackingCredentialPlaceholder = shouldShowGhnCredential
+    ? "0987654321 or 64-hex phone_verify"
+    : "9613";
 
   const stats = useMemo(
     () => ({
@@ -254,8 +264,13 @@ export function OrdersPage() {
     const normalizedNote = note.trim();
     const normalizedTrackingCredential = trackingCredential.trim();
 
-    if (shouldShowJntCredential && !jntPhoneLast4Pattern.test(normalizedTrackingCredential)) {
+    if (shouldShowJntCredential && !isValidJntCredential(normalizedTrackingCredential)) {
       toast.error("J&T phone last 4 must contain exactly 4 digits.");
+      return;
+    }
+
+    if (shouldShowGhnCredential && !isValidGhnCredential(normalizedTrackingCredential)) {
+      toast.error("GHN requires recipient phone or a 64-character phone_verify.");
       return;
     }
 
@@ -269,7 +284,7 @@ export function OrdersPage() {
       trackingNumber,
       telegramChatId: normalizedTelegramChatId,
       note: normalizedNote || undefined,
-      trackingCredential: normalizedTrackingCredential || undefined,
+      trackingCredential: shouldShowTrackingCredential ? normalizedTrackingCredential : undefined,
     });
     setTrackingNumber("");
     setNote("");
@@ -375,12 +390,18 @@ export function OrdersPage() {
           onChange={(event) => setTelegramChatId(event.target.value)}
         />
         <Input
-          label="Phone last 4"
-          placeholder="9613"
+          label={trackingCredentialLabel}
+          placeholder={trackingCredentialPlaceholder}
           value={trackingCredential}
-          onChange={(event) => setTrackingCredential(event.target.value)}
-          maxLength={4}
-          disabled={!shouldShowJntCredential}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            setTrackingCredential(
+              shouldShowJntCredential ? nextValue.replace(/\D/g, "").slice(0, 4) : nextValue,
+            );
+          }}
+          maxLength={shouldShowGhnCredential ? 128 : 4}
+          disabled={!shouldShowTrackingCredential}
+          autoComplete="off"
         />
         <Input
           label="Note"

@@ -18,6 +18,10 @@ import {
   isValidTrackingNumberForCarrier,
   normalizeTrackingNumber,
 } from './tracking-carrier';
+import {
+  jntPhoneLast4Pattern,
+  normalizeGhnTrackingCredential,
+} from './tracking-credential';
 import type { NormalizedTrackingRecord } from './tracking-record';
 
 export type AddTrackingResult = {
@@ -150,6 +154,7 @@ export class TrackingService {
     const normalizedNote = this.normalizeNote(note);
     const normalizedTrackingCredential = this.normalizeTrackingCredential(
       carrier,
+      normalizedTrackingNumber,
       trackingCredential,
     );
     const existingOrder = await this.repository.findByTrackingNumberAndChat(
@@ -229,6 +234,15 @@ export class TrackingService {
     const notifications: TrackingNotification[] = [];
 
     for (const order of activeOrders) {
+      if (order.carrier === TrackingCarrier.GHN && !order.trackingCredential) {
+        logger.warn(
+          { carrier: order.carrier, orderId: order.id, trackingNumber: order.trackingNumber },
+          'Skipped GHN tracking order because phone_verify is missing',
+        );
+        await delay(500);
+        continue;
+      }
+
       try {
         const latestRecord = await this.getLatestTrackingRecord(
           order.carrier,
@@ -317,7 +331,7 @@ export class TrackingService {
     trackingCredential?: string | null,
   ): Promise<NormalizedTrackingRecord> {
     if (carrier === TrackingCarrier.GHN) {
-      return this.ghn.getLatestTrackingRecord(trackingNumber);
+      return this.ghn.getLatestTrackingRecord(trackingNumber, trackingCredential);
     }
 
     if (carrier === TrackingCarrier.JNT) {
@@ -437,9 +451,14 @@ export class TrackingService {
 
   private normalizeTrackingCredential(
     carrier: TrackingCarrier,
+    trackingNumber: string,
     trackingCredential: string | null | undefined,
   ): string | null | undefined {
     if (trackingCredential === undefined) {
+      if (carrier === TrackingCarrier.GHN) {
+        throw new AppError('GHN requires recipient phone or phone_verify to track this order', 400);
+      }
+
       if (carrier === TrackingCarrier.JNT) {
         throw new AppError('J&T tracking requires phone last 4 digits', 400);
       }
@@ -447,13 +466,23 @@ export class TrackingService {
       return undefined;
     }
 
-    if (carrier !== TrackingCarrier.JNT) {
+    if (carrier === TrackingCarrier.SPX) {
       return undefined;
     }
 
     const trimmedCredential = trackingCredential?.trim() ?? '';
 
-    if (!/^\d{4}$/.test(trimmedCredential)) {
+    if (carrier === TrackingCarrier.GHN) {
+      const phoneVerify = normalizeGhnTrackingCredential(trackingNumber, trimmedCredential);
+
+      if (!phoneVerify) {
+        throw new AppError('GHN requires a valid recipient phone or 64-character phone_verify', 400);
+      }
+
+      return phoneVerify;
+    }
+
+    if (!jntPhoneLast4Pattern.test(trimmedCredential)) {
       throw new AppError('J&T phone last 4 must contain exactly 4 digits', 400);
     }
 

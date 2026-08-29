@@ -1,8 +1,15 @@
 import type { Prisma } from '@prisma/client';
+import { env } from '../../../config/env';
 import { prisma } from '../../../shared/prisma/client';
 import type { ListUsersQuery } from './user.schema';
 
 export type UserEntity = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
+type UserWithOrderCountEntity = Prisma.UserGetPayload<{
+  include: { _count: { select: { orders: true } } };
+}>;
+export type UserListEntity = Omit<UserWithOrderCountEntity, '_count'> & {
+  ordersCount: number;
+};
 
 export type UpsertUserInput = {
   telegramUserId: string;
@@ -24,8 +31,58 @@ export type DeleteUsersResult = {
   notFoundUserIds: number[];
 };
 
+export type ClearZeroOrderUsersResult = {
+  deletedCount: number;
+  deletedUserIds: number[];
+  deletedTelegramUserIds: string[];
+};
+
+export type ZeroOrderUsersPreview = {
+  count: number;
+  users: UserListEntity[];
+};
+
+const userOrderByBySort: Record<ListUsersQuery['sort'], Prisma.UserOrderByWithRelationInput[]> = {
+  CREATED_DESC: [{ createdAt: 'desc' }],
+  ORDERS_DESC: [{ orders: { _count: 'desc' } }, { createdAt: 'desc' }],
+  ORDERS_ASC: [{ orders: { _count: 'asc' } }, { createdAt: 'desc' }],
+};
+
+const userOrderCountInclude = {
+  _count: {
+    select: {
+      orders: true,
+    },
+  },
+} satisfies Prisma.UserInclude;
+
+const toUserListEntity = (user: UserWithOrderCountEntity): UserListEntity => {
+  const { _count, ...rest } = user;
+
+  return {
+    ...rest,
+    ordersCount: _count.orders,
+  };
+};
+
+const getAdminTelegramUserIds = (): string[] =>
+  env.ADMIN_TELEGRAM_ADMINS.split(',')
+    .map((item) => item.trim().split(':')[0]?.trim())
+    .filter((telegramUserId): telegramUserId is string => Boolean(telegramUserId));
+
+const buildZeroOrderUserWhere = (): Prisma.UserWhereInput => {
+  const adminTelegramUserIds = getAdminTelegramUserIds();
+
+  return {
+    orders: { none: {} },
+    ...(adminTelegramUserIds.length > 0
+      ? { telegramUserId: { notIn: adminTelegramUserIds } }
+      : {}),
+  };
+};
+
 export class UserRepository {
-  listUsers(filters: ListUsersQuery = {}): Promise<UserEntity[]> {
+  async listUsers(filters: Partial<ListUsersQuery> = {}): Promise<UserListEntity[]> {
     const q = filters.q?.trim();
     const andFilters: Prisma.UserWhereInput[] = [];
 
@@ -58,10 +115,13 @@ export class UserRepository {
       });
     }
 
-    return prisma.user.findMany({
+    const users = await prisma.user.findMany({
       where: andFilters.length > 0 ? { AND: andFilters } : undefined,
-      orderBy: { createdAt: 'desc' },
+      include: userOrderCountInclude,
+      orderBy: userOrderByBySort[filters.sort ?? 'CREATED_DESC'],
     });
+
+    return users.map(toUserListEntity);
   }
 
   upsertUser(input: UpsertUserInput): Promise<UserEntity> {
@@ -184,6 +244,63 @@ export class UserRepository {
         deletedUserIds,
         deletedTelegramUserIds,
         notFoundUserIds,
+      };
+    });
+  }
+
+  async previewZeroOrderUsers(): Promise<ZeroOrderUsersPreview> {
+    const users = await prisma.user.findMany({
+      where: buildZeroOrderUserWhere(),
+      include: userOrderCountInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const mappedUsers = users.map(toUserListEntity);
+
+    return {
+      count: mappedUsers.length,
+      users: mappedUsers,
+    };
+  }
+
+  async clearZeroOrderUsers(): Promise<ClearZeroOrderUsersResult> {
+    return prisma.$transaction(async (transaction) => {
+      const users = await transaction.user.findMany({
+        where: buildZeroOrderUserWhere(),
+        select: { id: true, telegramUserId: true },
+      });
+      const deletedUserIds = users.map((user) => user.id);
+      const deletedTelegramUserIds = users.map((user) => user.telegramUserId);
+
+      if (deletedUserIds.length === 0) {
+        return {
+          deletedCount: 0,
+          deletedUserIds,
+          deletedTelegramUserIds,
+        };
+      }
+
+      await transaction.trackingOrderActionLog.updateMany({
+        where: { userId: { in: deletedUserIds } },
+        data: { userId: null },
+      });
+
+      await transaction.broadcastRecipient.updateMany({
+        where: { userId: { in: deletedUserIds } },
+        data: { userId: null },
+      });
+
+      const deleted = await transaction.user.deleteMany({
+        where: {
+          id: { in: deletedUserIds },
+          orders: { none: {} },
+        },
+      });
+
+      return {
+        deletedCount: deleted.count,
+        deletedUserIds,
+        deletedTelegramUserIds,
       };
     });
   }

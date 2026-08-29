@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const listUsersQuerySchema = z.object({
   q: z.string().trim().min(1).max(100).optional(),
   profile: z.enum(['HAS_PROFILE', 'MISSING_PROFILE']).optional(),
+  sort: z.enum(['CREATED_DESC', 'ORDERS_DESC', 'ORDERS_ASC']).optional().default('CREATED_DESC'),
 });
 
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;

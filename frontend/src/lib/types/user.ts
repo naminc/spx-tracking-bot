@@ -10,4 +10,5 @@ export type User = {
   blockedByAdminTelegramId: string | null;
   blockedByAdminUsername: string | null;
   createdAt: string;
+  ordersCount: number;
 };

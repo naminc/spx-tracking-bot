@@ -4,10 +4,12 @@ import { apiClient } from "../lib/api/client";
 import type { User } from "../lib/types/user";
 
 export type UserProfileFilter = "HAS_PROFILE" | "MISSING_PROFILE";
+export type UserSort = "CREATED_DESC" | "ORDERS_DESC" | "ORDERS_ASC";
 
 export type UserFilters = {
   q?: string;
   profile?: UserProfileFilter | "";
+  sort?: UserSort;
 };
 
 export type DeleteUsersResult = {
@@ -15,6 +17,17 @@ export type DeleteUsersResult = {
   deletedUserIds: number[];
   deletedTelegramUserIds?: string[];
   notFoundUserIds?: number[];
+};
+
+export type ClearZeroOrderUsersResult = {
+  deletedCount: number;
+  deletedUserIds: number[];
+  deletedTelegramUserIds?: string[];
+};
+
+export type ZeroOrderUsersPreview = {
+  count: number;
+  users: User[];
 };
 
 function toQueryString(params: Record<string, string | undefined>): string {
@@ -46,8 +59,17 @@ export function useUsers(filters: UserFilters = {}) {
         `/admin/users${toQueryString({
           q: filters.q?.trim(),
           profile: filters.profile,
+          sort: filters.sort,
         })}`,
       ),
+  });
+}
+
+export function useZeroOrderUsersPreview(enabled: boolean) {
+  return useQuery<ZeroOrderUsersPreview>({
+    queryKey: ["users", "zero-order-preview"],
+    queryFn: () => apiClient.get<ZeroOrderUsersPreview>("/admin/users/zero-order-preview"),
+    enabled,
   });
 }
 
@@ -111,6 +133,20 @@ export function useBulkDeleteUsers() {
       if (result.notFoundUserIds?.length) {
         toast.warning(`Not found: ${result.notFoundUserIds.join(", ")}`);
       }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+}
+
+export function useClearZeroOrderUsers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      apiClient.post<ClearZeroOrderUsersResult>("/admin/users/clear-zero-order"),
+    onSuccess: (result) => {
+      invalidateUserRelatedQueries(queryClient);
+      toast.success(`Deleted ${result.deletedCount} zero-order user${result.deletedCount === 1 ? "" : "s"}`);
     },
     onError: (error: Error) => toast.error(error.message),
   });

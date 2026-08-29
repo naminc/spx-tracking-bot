@@ -17,6 +17,16 @@ userRouter.get(
   asyncHandler(userController.listUsers),
 );
 
+userRouter.get(
+  '/zero-order-preview',
+  asyncHandler(userController.previewZeroOrderUsers),
+);
+
+userRouter.post(
+  '/clear-zero-order',
+  asyncHandler(userController.clearZeroOrderUsers),
+);
+
 userRouter.post(
   '/bulk-delete',
   validateRequest({ body: bulkDeleteUsersBodySchema }),

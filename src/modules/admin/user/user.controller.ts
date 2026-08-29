@@ -18,6 +18,16 @@ export class UserController {
     response.json(successResponse('Lấy danh sách người dùng thành công', users));
   };
 
+  previewZeroOrderUsers = async (_request: Request, response: Response): Promise<void> => {
+    const result = await this.repository.previewZeroOrderUsers();
+    response.json(successResponse('Fetched zero-order users successfully', result));
+  };
+
+  clearZeroOrderUsers = async (_request: Request, response: Response): Promise<void> => {
+    const result = await this.repository.clearZeroOrderUsers();
+    response.json(successResponse('Cleared zero-order users successfully', result));
+  };
+
   blockUser = async (request: Request, response: Response): Promise<void> => {
     const { id } = request.params as unknown as UserIdParams;
     const { reason } = request.body as BlockUserBody;

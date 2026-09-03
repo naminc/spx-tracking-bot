@@ -226,7 +226,7 @@ export function TrackingActionLogsPage() {
           label="Tracking Number"
           value={trackingInput}
           onChange={(event) => setTrackingInput(event.target.value)}
-          placeholder="SPXVN063015366786, VN260473135399R, VNGH80667097209, or 862195772225"
+          placeholder="SPXVN063015366786, VN260473135399R, VNGH80667097209, JNTXB1012408892, or 862195772225"
         />
         <Input
           label="Telegram Chat ID"

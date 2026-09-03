@@ -145,6 +145,7 @@ ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 1
 ${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
 ${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add ghn GY8RA4EL 0987654321 Hàng khách A</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
+${exampleCommandIcon} <b>Ví dụ J&T prefix:</b> <code>/add JNTXB1012408892 9613 Hàng khách A</code>
 ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống`;
   },
 
@@ -161,6 +162,7 @@ ${exampleCommandIcon} <b>SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
 ${exampleCommandIcon} <b>SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
 ${exampleCommandIcon} <b>GHN:</b> <code>/add ghn GY8RA4EL 0987654321 Hàng khách A</code>
 ${exampleCommandIcon} <b>J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
+${exampleCommandIcon} <b>J&T prefix:</b> <code>/add JNTXB1012408892 9613 Hàng khách A</code>
 
 <b>2. Xem danh sách đang theo dõi</b>
 ${listCommandIcon} <code>/list</code>
@@ -170,6 +172,7 @@ ${codeCommandIcon} <b>Cú pháp:</b> <code>/remove &lt;mã_vận_đơn&gt;</code
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>
 ${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/remove VN260473135399R</code>
 ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
+${exampleCommandIcon} <b>Ví dụ J&T prefix:</b> <code>/remove JNTXB1012408892</code>
 
 <b>4. Xem đơn vị vận chuyển hỗ trợ</b>
 ${truckCommandIcon} <code>/carriers</code>
@@ -195,6 +198,7 @@ ${noteCommandIcon} <b>Lưu ý:</b> <b>GHN</b> cần SĐT người nhận để t
 <b>J&T Express</b>
 🧾 <b>Định dạng:</b> Mã chữ/số, 6-32 ký tự
 ${exampleCommandIcon} <b>Ví dụ:</b> <code>862195772225</code>
+${exampleCommandIcon} <b>Ví dụ prefix:</b> <code>JNTXB1012408892</code>
 ${noteCommandIcon} <b>Lưu ý:</b> <b>J&T</b> cần 4 số cuối SĐT để tra cứu.
 
 ${startCommandIcon} <b>Cách dùng:</b> <b>SPX</b> dùng <code>/add &lt;mã_vận_đơn&gt; &lt;ghi_chú&gt;</code>. <b>GHN</b> dùng <code>/add ghn &lt;mã_vận_đơn&gt; &lt;SĐT_người_nhận&gt; &lt;ghi_chú&gt;</code>. <b>J&T</b> dùng <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>.`;
@@ -234,7 +238,8 @@ ${noteCommandIcon} <b>Lưu ý:</b> Ghi chú có thể để trống
 ${exampleCommandIcon} <b>Ví dụ SPX:</b> <code>/add SPXVN063015366786 iPhone 17</code>
 ${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R Hàng quốc tế</code>
 ${exampleCommandIcon} <b>Ví dụ GHN:</b> <code>/add ghn GY8RA4EL 0987654321 Hàng khách A</code>
-${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>`;
+${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
+${exampleCommandIcon} <b>Ví dụ J&T prefix:</b> <code>/add JNTXB1012408892 9613 Hàng khách A</code>`;
   },
 
   directTrackingNumberNotAllowed(trackingNumber: string): string {
@@ -332,7 +337,8 @@ ${chartCommandIcon} <b>Tổng cộng:</b> ${escapeHtml(totalCount)} đơn`;
 ${codeCommandIcon} <b>Lệnh mẫu:</b> <code>/add SPXVN063015366786</code>
 ${codeCommandIcon} <b>Lệnh mẫu SPX hoả tốc/quốc tế:</b> <code>/add VN260473135399R</code>
 ${codeCommandIcon} <b>Lệnh mẫu GHN:</b> <code>/add ghn GY8RA4EL 0987654321</code>
-${codeCommandIcon} <b>Lệnh mẫu J&T:</b> <code>/add jnt 862195772225 9613</code>`;
+${codeCommandIcon} <b>Lệnh mẫu J&T:</b> <code>/add jnt 862195772225 9613</code>
+${codeCommandIcon} <b>Lệnh mẫu J&T prefix:</b> <code>/add JNTXB1012408892 9613</code>`;
   },
 
   removeSuccess(trackingNumber: string, carrier: TrackingCarrier): string {
@@ -351,7 +357,8 @@ ${codeCommandIcon} <b>Cú pháp: <code>/remove &lt;mã_vận_đơn&gt;</code></b
 ${codeCommandIcon} <b>J&T: <code>/remove jnt &lt;mã_vận_đơn&gt;</code></b>
  ${exampleCommandIcon} <b>Ví dụ:</b> <code>/remove SPXVN063015366786</code>
 ${exampleCommandIcon} <b>Ví dụ SPX hoả tốc/quốc tế:</b> <code>/remove VN260473135399R</code>
-${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>`;
+${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
+${exampleCommandIcon} <b>Ví dụ J&T prefix:</b> <code>/remove JNTXB1012408892</code>`;
   },
 
   invalidTrackingNumber(): string {
@@ -360,7 +367,7 @@ ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
 
 🧾 <b>Định dạng SPX:</b> <code>SPXVN063015366786</code> hoặc <code>VN260473135399R</code>
 🧾 <b>Định dạng GHN:</b> <code>/add ghn GY8RA4EL 0987654321</code>
-🧾 <b>Định dạng J&T:</b> <code>/add jnt 862195772225 9613</code>
+🧾 <b>Định dạng J&T:</b> <code>/add jnt 862195772225 9613</code> hoặc <code>/add JNTXB1012408892 9613</code>
 🔁 <b>Gợi ý:</b> Vui lòng kiểm tra lại và gửi lại mã đúng.`;
   },
 
@@ -369,7 +376,8 @@ ${exampleCommandIcon} <b>Ví dụ J&T:</b> <code>/remove jnt 862195772225</code>
 ━━━━━━━━━━━━━━━━
 
 🧾 <b>Cú pháp J&T:</b> <code>/add jnt &lt;mã_vận_đơn&gt; &lt;4_số_cuối_SĐT&gt; &lt;ghi_chú&gt;</code>
-${exampleCommandIcon} <b>Ví dụ:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>`;
+${exampleCommandIcon} <b>Ví dụ:</b> <code>/add jnt 862195772225 9613 Hàng khách A</code>
+${exampleCommandIcon} <b>Ví dụ prefix:</b> <code>/add JNTXB1012408892 9613 Hàng khách A</code>`;
   },
 
   invalidGhnCredential(): string {

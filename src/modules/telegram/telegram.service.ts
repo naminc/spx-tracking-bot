@@ -7,6 +7,7 @@ import { MAX_ORDER_NOTE_LENGTH, trackingNumberSchema } from '../tracking/trackin
 import {
   TrackingCarrier,
   detectTrackingCarrier,
+  isJntTrackingNumber,
 } from '../tracking/tracking-carrier';
 import {
   isValidGhnTrackingCredential,
@@ -59,7 +60,6 @@ const carrierAliases: Record<string, TrackingCarrier> = {
 const getCarrierAlias = (value: string | undefined): TrackingCarrier | undefined =>
   value ? carrierAliases[value.trim().toLowerCase()] : undefined;
 
-const numericJntTrackingNumberPattern = /^[0-9]{6,32}$/;
 const jntPhoneLast4Pattern = /^\d{4}$/;
 
 export class TelegramService {
@@ -438,10 +438,7 @@ export class TelegramService {
     const { carrier, trackingNumber: rawTrackingNumber, trackingCredential, note } = parsedCommand;
     const detectedCarrier = detectTrackingCarrier(rawTrackingNumber, carrier);
 
-    if (
-      !trackingCredential &&
-      (carrier === TrackingCarrier.JNT || numericJntTrackingNumberPattern.test(rawTrackingNumber))
-    ) {
+    if (!trackingCredential && detectedCarrier === TrackingCarrier.JNT) {
       await this.sendMessage(chatId, telegramMessageBuilder.invalidJntCredential());
       return;
     }
@@ -643,7 +640,7 @@ export class TelegramService {
       cursor += 1;
     } else if (
       carrier === 'AUTO' &&
-      numericJntTrackingNumberPattern.test(trackingNumber) &&
+      isJntTrackingNumber(trackingNumber) &&
       jntPhoneLast4Pattern.test(tokens[cursor] ?? '')
     ) {
       carrier = TrackingCarrier.JNT;

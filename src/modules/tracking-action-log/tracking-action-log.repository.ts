@@ -3,6 +3,11 @@ import {
   TrackingOrderActionType,
   type Prisma,
 } from '@prisma/client';
+import {
+  getPaginationArgs,
+  type PaginatedRepositoryResult,
+  type PaginationInput,
+} from '../../shared/pagination/pagination';
 import { prisma } from '../../shared/prisma/client';
 import type { TrackingCarrier } from '../tracking/tracking-carrier';
 
@@ -57,7 +62,15 @@ export type FindTrackingOrderActionLogsFilters = {
   trackingNumber?: string;
   telegramChatId?: string;
   userId?: number;
-  limit?: number;
+  sort?: 'CREATED_DESC' | 'CREATED_ASC';
+} & Partial<PaginationInput>;
+
+const actionLogOrderByBySort: Record<
+  NonNullable<FindTrackingOrderActionLogsFilters['sort']>,
+  Prisma.TrackingOrderActionLogOrderByWithRelationInput[]
+> = {
+  CREATED_DESC: [{ createdAt: 'desc' }],
+  CREATED_ASC: [{ createdAt: 'asc' }],
 };
 
 export class TrackingOrderActionLogRepository {
@@ -81,9 +94,11 @@ export class TrackingOrderActionLogRepository {
     });
   }
 
-  listLogs(
+  async listLogs(
     filters: FindTrackingOrderActionLogsFilters = {},
-  ): Promise<TrackingOrderActionLogEntity[]> {
+  ): Promise<PaginatedRepositoryResult<TrackingOrderActionLogEntity>> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
     const where: Prisma.TrackingOrderActionLogWhereInput = {
       carrier: filters.carrier,
       action: filters.action,
@@ -97,12 +112,17 @@ export class TrackingOrderActionLogRepository {
       userId: filters.userId,
     };
 
-    return prisma.trackingOrderActionLog.findMany({
-      where,
-      include: actionLogInclude,
-      orderBy: { createdAt: 'desc' },
-      take: filters.limit,
-    });
+    const [data, total] = await prisma.$transaction([
+      prisma.trackingOrderActionLog.findMany({
+        where,
+        include: actionLogInclude,
+        orderBy: actionLogOrderByBySort[filters.sort ?? 'CREATED_DESC'],
+        ...getPaginationArgs({ page, limit }),
+      }),
+      prisma.trackingOrderActionLog.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
   }
 }
 

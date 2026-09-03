@@ -19,6 +19,7 @@ function formatUserOption(user: User) {
 
 export function UserFilterSelect({ label, users, value, onChange, placeholder = "All users", disabled }: Props) {
   const selectId = label.toLowerCase().replace(/\s+/g, "-");
+  const hasSelectedUser = !value || users.some((user) => String(user.id) === value);
 
   return (
     <div>
@@ -33,6 +34,7 @@ export function UserFilterSelect({ label, users, value, onChange, placeholder = 
         className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70"
       >
         <option value="">{placeholder}</option>
+        {!hasSelectedUser ? <option value={value}>User #{value}</option> : null}
         {users.map((user) => (
           <option key={user.id} value={user.id}>
             {formatUserOption(user)}

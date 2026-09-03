@@ -1,5 +1,10 @@
 import type { Prisma } from '@prisma/client';
 import type { InputJsonObject, InputJsonValue } from '@prisma/client/runtime/library';
+import {
+  getPaginationArgs,
+  type PaginatedRepositoryResult,
+  type PaginationInput,
+} from '../../shared/pagination/pagination';
 import { prisma } from '../../shared/prisma/client';
 import type { FinalStatus } from './final-status';
 import type { TrackingCarrier } from './tracking-carrier';
@@ -48,6 +53,35 @@ type FindOrdersFilters = {
   telegramUserId?: string;
   finalStatus?: FinalStatus;
   includeCompleted?: boolean;
+  sort?: 'UPDATED_DESC' | 'CREATED_DESC' | 'LAST_EVENT_DESC' | 'STATUS';
+} & Partial<PaginationInput>;
+
+type ListHistoriesFilters = {
+  carrier?: TrackingCarrier;
+  trackingNumber?: string;
+  telegramChatId?: string;
+  userId?: number;
+  telegramUserId?: string;
+  sort?: 'EVENT_DESC' | 'EVENT_ASC' | 'CREATED_DESC';
+} & Partial<PaginationInput>;
+
+const orderOrderByBySort: Record<
+  NonNullable<FindOrdersFilters['sort']>,
+  Prisma.TrackingOrderOrderByWithRelationInput[]
+> = {
+  UPDATED_DESC: [{ updatedAt: 'desc' }],
+  CREATED_DESC: [{ createdAt: 'desc' }],
+  LAST_EVENT_DESC: [{ lastEventTime: 'desc' }, { updatedAt: 'desc' }],
+  STATUS: [{ finalStatus: 'asc' }, { updatedAt: 'desc' }],
+};
+
+const historyOrderByBySort: Record<
+  NonNullable<ListHistoriesFilters['sort']>,
+  Prisma.TrackingHistoryOrderByWithRelationInput[]
+> = {
+  EVENT_DESC: [{ eventTime: 'desc' }],
+  EVENT_ASC: [{ eventTime: 'asc' }],
+  CREATED_DESC: [{ createdAt: 'desc' }],
 };
 
 type CreateOrderInput = {
@@ -113,7 +147,38 @@ const toJsonObject = (value: Record<string, unknown>): InputJsonObject =>
   }, {});
 
 export class TrackingRepository {
-  async findOrders(filters: FindOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+  async findOrders(
+    filters: FindOrdersFilters = {},
+  ): Promise<PaginatedRepositoryResult<TrackingOrderEntity>> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const where = await this.buildOrderWhere(filters);
+    const [data, total] = await prisma.$transaction([
+      prisma.trackingOrder.findMany({
+        where,
+        include: trackingOrderInclude,
+        orderBy: orderOrderByBySort[filters.sort ?? 'UPDATED_DESC'],
+        ...getPaginationArgs({ page, limit }),
+      }),
+      prisma.trackingOrder.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  async findAllOrders(filters: FindOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+    const where = await this.buildOrderWhere(filters);
+
+    return prisma.trackingOrder.findMany({
+      where,
+      include: trackingOrderInclude,
+      orderBy: orderOrderByBySort[filters.sort ?? 'UPDATED_DESC'],
+    });
+  }
+
+  private async buildOrderWhere(
+    filters: FindOrdersFilters = {},
+  ): Promise<Prisma.TrackingOrderWhereInput | undefined> {
     const userSearch = filters.telegramChatId?.trim();
     const where: Prisma.TrackingOrderWhereInput = {
       carrier: filters.carrier,
@@ -168,11 +233,7 @@ export class TrackingRepository {
       where.AND = andFilters;
     }
 
-    return prisma.trackingOrder.findMany({
-      where,
-      include: trackingOrderInclude,
-      orderBy: { updatedAt: 'desc' },
-    });
+    return Object.values(where).some((value) => value !== undefined) ? where : undefined;
   }
 
   findActiveOrders(): Promise<TrackingOrderEntity[]> {
@@ -342,46 +403,58 @@ export class TrackingRepository {
     });
   }
 
-  listHistories(filters: {
-    carrier?: TrackingCarrier;
-    trackingNumber?: string;
-    telegramChatId?: string;
-    userId?: number;
-    telegramUserId?: string;
-    limit?: number;
-  }): Promise<TrackingHistoryWithOrderEntity[]> {
-    return prisma.trackingHistory.findMany({
-      where:
-        filters.carrier ||
-        filters.trackingNumber ||
-        filters.telegramChatId ||
-        filters.userId ||
-        filters.telegramUserId
-          ? {
-              carrier: filters.carrier,
-              order: {
-                carrier: filters.carrier,
-                trackingNumber: filters.trackingNumber
-                  ? { contains: filters.trackingNumber }
-                  : undefined,
-                telegramChatId: filters.telegramChatId
-                  ? { contains: filters.telegramChatId }
-                  : undefined,
-                userId: filters.userId,
-                user: !filters.userId && filters.telegramUserId
-                  ? { telegramUserId: filters.telegramUserId }
-                  : undefined,
-              },
-            }
-          : undefined,
-      include: {
-        order: {
-          select: trackingHistoryOrderSelect,
+  async listHistories(
+    filters: ListHistoriesFilters = {},
+  ): Promise<PaginatedRepositoryResult<TrackingHistoryWithOrderEntity>> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const where = this.buildHistoryWhere(filters);
+    const [data, total] = await prisma.$transaction([
+      prisma.trackingHistory.findMany({
+        where,
+        include: {
+          order: {
+            select: trackingHistoryOrderSelect,
+          },
         },
+        orderBy: historyOrderByBySort[filters.sort ?? 'EVENT_DESC'],
+        ...getPaginationArgs({ page, limit }),
+      }),
+      prisma.trackingHistory.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  private buildHistoryWhere(
+    filters: ListHistoriesFilters,
+  ): Prisma.TrackingHistoryWhereInput | undefined {
+    if (
+      !filters.carrier &&
+      !filters.trackingNumber &&
+      !filters.telegramChatId &&
+      !filters.userId &&
+      !filters.telegramUserId
+    ) {
+      return undefined;
+    }
+
+    return {
+      carrier: filters.carrier,
+      order: {
+        carrier: filters.carrier,
+        trackingNumber: filters.trackingNumber
+          ? { contains: filters.trackingNumber }
+          : undefined,
+        telegramChatId: filters.telegramChatId
+          ? { contains: filters.telegramChatId }
+          : undefined,
+        userId: filters.userId,
+        user: !filters.userId && filters.telegramUserId
+          ? { telegramUserId: filters.telegramUserId }
+          : undefined,
       },
-      orderBy: { eventTime: 'desc' },
-      take: filters.limit,
-    });
+    };
   }
 
   private toHistoryCreateInput(

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { AppError } from '../../../shared/errors/app-error';
-import { successResponse } from '../../../shared/response/api-response';
+import { getPaginationMeta } from '../../../shared/pagination/pagination';
+import { paginatedResponse, successResponse } from '../../../shared/response/api-response';
 import { authService } from '../auth/auth.service';
 import { UserRepository, userRepository } from './user.repository';
 import type {
@@ -14,8 +15,14 @@ export class UserController {
   constructor(private readonly repository: UserRepository = userRepository) {}
 
   listUsers = async (request: Request, response: Response): Promise<void> => {
-    const users = await this.repository.listUsers(request.query as unknown as ListUsersQuery);
-    response.json(successResponse('Lấy danh sách người dùng thành công', users));
+    const result = await this.repository.listUsers(request.query as unknown as ListUsersQuery);
+    response.json(
+      paginatedResponse(
+        'Fetched users successfully',
+        result.data,
+        getPaginationMeta(result),
+      ),
+    );
   };
 
   previewZeroOrderUsers = async (_request: Request, response: Response): Promise<void> => {

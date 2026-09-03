@@ -36,5 +36,7 @@ export type TrackingOrderActionLogFilters = {
   trackingNumber?: string;
   telegramChatId?: string;
   userId?: string;
+  page?: number;
   limit?: number;
+  sort?: "CREATED_DESC" | "CREATED_ASC";
 };

@@ -7,7 +7,7 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { Input } from "../components/ui/Input";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
 import { useTrackingActionLogs } from "../hooks/useTrackingActionLogs";
-import { useUsers } from "../hooks/useUsers";
+import { useUserOptions } from "../hooks/useUsers";
 import { formatDate } from "../lib/format";
 import type {
   TrackingOrderActionLog,
@@ -57,6 +57,9 @@ export function TrackingActionLogsPage() {
   const [trackingInput, setTrackingInput] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [userInput, setUserInput] = useState("");
+  const [sort, setSort] = useState<"CREATED_DESC" | "CREATED_ASC">("CREATED_DESC");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const normalizedTrackingNumber = trackingInput.trim().toUpperCase();
   const normalizedChatId = chatInput.trim();
 
@@ -67,9 +70,14 @@ export function TrackingActionLogsPage() {
     trackingNumber: normalizedTrackingNumber || undefined,
     telegramChatId: normalizedChatId || undefined,
     userId: userInput || undefined,
+    page,
+    limit: pageSize,
+    sort,
   });
-  const usersQuery = useUsers();
-  const logs = logsQuery.data ?? [];
+  const usersQuery = useUserOptions();
+  const users = usersQuery.data ?? [];
+  const logs = logsQuery.data?.data ?? [];
+  const pagination = logsQuery.data?.meta;
   const tableResetKey = [
     carrierInput,
     actionInput,
@@ -77,7 +85,12 @@ export function TrackingActionLogsPage() {
     normalizedTrackingNumber,
     normalizedChatId,
     userInput,
+    sort,
   ].join("|");
+
+  useEffect(() => {
+    setPage(1);
+  }, [actionInput, carrierInput, normalizedChatId, normalizedTrackingNumber, sort, sourceInput, userInput]);
 
   const columns = [
     {
@@ -145,9 +158,11 @@ export function TrackingActionLogsPage() {
     setTrackingInput("");
     setChatInput("");
     setUserInput("");
+    setSort("CREATED_DESC");
+    setPage(1);
   };
 
-  const tableError = logsQuery.error || usersQuery.error;
+  const tableError = logsQuery.error;
   const tableErrorMessage = tableError ? (tableError as Error).message : "";
 
   useEffect(() => {
@@ -160,7 +175,7 @@ export function TrackingActionLogsPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Action Logs</h1>
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_160px_160px_1fr_1fr_1.4fr_auto] md:items-end">
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_160px_160px_1fr_1fr_1.4fr_180px_auto] md:items-end">
         <div>
           <label htmlFor="action-log-carrier-filter" className="mb-1 block text-sm font-medium text-gray-700">
             Carrier
@@ -221,11 +236,25 @@ export function TrackingActionLogsPage() {
         />
         <UserFilterSelect
           label="User"
-          users={usersQuery.data ?? []}
+          users={users}
           value={userInput}
           onChange={setUserInput}
           disabled={usersQuery.isLoading}
         />
+        <div>
+          <label htmlFor="action-log-sort" className="mb-1 block text-sm font-medium text-gray-700">
+            Sort
+          </label>
+          <select
+            id="action-log-sort"
+            value={sort}
+            onChange={(event) => setSort(event.target.value as "CREATED_DESC" | "CREATED_ASC")}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="CREATED_DESC">Newest</option>
+            <option value="CREATED_ASC">Oldest</option>
+          </select>
+        </div>
         <Button type="button" variant="secondary" onClick={handleClear}>
           Clear
         </Button>
@@ -245,7 +274,13 @@ export function TrackingActionLogsPage() {
             columns={columns}
             data={logs}
             keyExtractor={(log) => String(log.id)}
-            initialPageSize={10}
+            manualPagination
+            page={page}
+            pageSize={pageSize}
+            total={pagination?.total ?? 0}
+            totalPages={pagination?.totalPages ?? 1}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
             resetKey={tableResetKey}
             loading={logsQuery.isLoading || logsQuery.isFetching}
             emptyMessage="No action logs found"

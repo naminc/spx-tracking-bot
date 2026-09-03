@@ -69,8 +69,13 @@ model TrackingOrder {
   @@unique([carrier, trackingNumber, telegramChatId])
   @@index([carrier])
   @@index([isCompleted])
+  @@index([telegramChatId])
   @@index([trackingNumber])
   @@index([userId])
+  @@index([finalStatus])
+  @@index([lastEventTime])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model TrackingHistory {
@@ -115,6 +120,7 @@ model User {
 
   @@index([username])
   @@index([isBlocked])
+  @@index([createdAt])
 }
 
 model TrackingOrderActionLog {

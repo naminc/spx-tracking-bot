@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useBroadcastDetail, useBroadcasts, useCreateBroadcast, useSendBroadcast } from "../hooks/useBroadcast";
-import { useUsers } from "../hooks/useUsers";
+import { useUserOptions } from "../hooks/useUsers";
 import { formatDate } from "../lib/format";
 import type {
   Broadcast,
@@ -49,7 +49,7 @@ export function BroadcastPage() {
   const [sendTarget, setSendTarget] = useState<Broadcast | BroadcastDetail | null>(null);
 
   const broadcastsQuery = useBroadcasts();
-  const usersQuery = useUsers();
+  const usersQuery = useUserOptions();
   const detailQuery = useBroadcastDetail(detailId);
   const createBroadcast = useCreateBroadcast();
   const sendBroadcast = useSendBroadcast();

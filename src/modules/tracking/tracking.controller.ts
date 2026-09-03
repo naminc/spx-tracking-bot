@@ -1,16 +1,17 @@
 import type { Request, Response } from 'express';
+import { getPaginationMeta } from '../../shared/pagination/pagination';
+import { paginatedResponse, successResponse } from '../../shared/response/api-response';
 import { authService } from '../admin/auth/auth.service';
-import { successResponse } from '../../shared/response/api-response';
 import {
   TrackingOrderActionSource,
   TrackingOrderActionType,
   trackingOrderActionLogService,
 } from '../tracking-action-log/tracking-action-log.service';
 import type { FinalStatus } from './final-status';
-import { TrackingService, trackingService } from './tracking.service';
 import type { TrackingCarrier } from './tracking-carrier';
 import { maskTrackingCredential } from './tracking-credential';
 import type { TrackingOrderEntity } from './tracking.repository';
+import { TrackingService, trackingService } from './tracking.service';
 
 const toPublicTrackingOrder = (order: TrackingOrderEntity) => ({
   ...order,
@@ -21,18 +22,7 @@ export class TrackingController {
   constructor(private readonly service: TrackingService = trackingService) {}
 
   listOrders = async (request: Request, response: Response): Promise<void> => {
-    const { carrier, trackingNumber, telegramChatId, userId, telegramUserId, finalStatus, includeCompleted } =
-      request.query as unknown as {
-      carrier?: TrackingCarrier;
-      trackingNumber?: string;
-      telegramChatId?: string;
-      userId?: number;
-      telegramUserId?: string;
-      finalStatus?: FinalStatus;
-      includeCompleted?: boolean;
-    };
-
-    const orders = await this.service.listOrders({
+    const {
       carrier,
       trackingNumber,
       telegramChatId,
@@ -40,38 +30,82 @@ export class TrackingController {
       telegramUserId,
       finalStatus,
       includeCompleted,
-    });
-    response.json(
-      successResponse('Lấy danh sách đơn hàng thành công', orders.map(toPublicTrackingOrder)),
-    );
-  };
-
-  listHistories = async (request: Request, response: Response): Promise<void> => {
-    const { carrier, trackingNumber, telegramChatId, userId, telegramUserId, limit } = request.query as unknown as {
+      page,
+      limit,
+      sort,
+    } = request.query as unknown as {
       carrier?: TrackingCarrier;
       trackingNumber?: string;
       telegramChatId?: string;
       userId?: number;
       telegramUserId?: string;
-      limit?: number;
+      finalStatus?: FinalStatus;
+      includeCompleted?: boolean;
+      page: number;
+      limit: number;
+      sort: 'UPDATED_DESC' | 'CREATED_DESC' | 'LAST_EVENT_DESC' | 'STATUS';
     };
 
-    const histories = await this.service.listHistories({
+    const result = await this.service.listOrders({
       carrier,
       trackingNumber,
       telegramChatId,
       userId,
       telegramUserId,
+      finalStatus,
+      includeCompleted,
+      page,
       limit,
+      sort,
     });
-    response.json(successResponse('Lấy lịch sử tracking thành công', histories));
+
+    response.json(
+      paginatedResponse(
+        'Fetched tracking orders successfully',
+        result.data.map(toPublicTrackingOrder),
+        getPaginationMeta(result),
+      ),
+    );
+  };
+
+  listHistories = async (request: Request, response: Response): Promise<void> => {
+    const { carrier, trackingNumber, telegramChatId, userId, telegramUserId, page, limit, sort } =
+      request.query as unknown as {
+        carrier?: TrackingCarrier;
+        trackingNumber?: string;
+        telegramChatId?: string;
+        userId?: number;
+        telegramUserId?: string;
+        page: number;
+        limit: number;
+        sort: 'EVENT_DESC' | 'EVENT_ASC' | 'CREATED_DESC';
+      };
+
+    const result = await this.service.listHistories({
+      carrier,
+      trackingNumber,
+      telegramChatId,
+      userId,
+      telegramUserId,
+      page,
+      limit,
+      sort,
+    });
+
+    response.json(
+      paginatedResponse(
+        'Fetched tracking histories successfully',
+        result.data,
+        getPaginationMeta(result),
+      ),
+    );
   };
 
   getOrder = async (request: Request, response: Response): Promise<void> => {
     const { trackingNumber } = request.params as { trackingNumber: string };
     const { carrier } = request.query as unknown as { carrier: TrackingCarrier | 'AUTO' };
     const order = await this.service.getOrder(trackingNumber, carrier);
-    response.json(successResponse('Lấy thông tin đơn hàng thành công', toPublicTrackingOrder(order)));
+    response.json(successResponse('Fetched tracking order successfully', toPublicTrackingOrder(order)));
   };
 
   createOrder = async (request: Request, response: Response): Promise<void> => {
@@ -116,8 +150,8 @@ export class TrackingController {
       .json(
         successResponse(
           result.alreadyExists
-            ? 'Đơn hàng đã tồn tại trong danh sách theo dõi'
-            : 'Thêm đơn hàng thành công',
+            ? 'Tracking order already exists'
+            : 'Tracking order created successfully',
           {
             order: toPublicTrackingOrder(result.order),
             alreadyExists: result.alreadyExists,
@@ -150,14 +184,14 @@ export class TrackingController {
         deletedOrderId: deletedOrder.id,
       },
     });
-    response.json(successResponse('Xóa theo dõi đơn hàng thành công', toPublicTrackingOrder(deletedOrder)));
+    response.json(successResponse('Tracking order deleted successfully', toPublicTrackingOrder(deletedOrder)));
   };
 
   getHistories = async (request: Request, response: Response): Promise<void> => {
     const { trackingNumber } = request.params as { trackingNumber: string };
     const { carrier } = request.query as unknown as { carrier: TrackingCarrier | 'AUTO' };
     const histories = await this.service.getHistories(trackingNumber, carrier);
-    response.json(successResponse('Lấy lịch sử đơn hàng thành công', histories));
+    response.json(successResponse('Fetched tracking history successfully', histories));
   };
 }
 

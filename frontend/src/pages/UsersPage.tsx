@@ -50,6 +50,8 @@ export function UsersPage() {
   const [search, setSearch] = useState("");
   const [profile, setProfile] = useState<ProfileFilterValue>("");
   const [sort, setSort] = useState<UserSort>("CREATED_DESC");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [blockTarget, setBlockTarget] = useState<User | null>(null);
   const [blockReason, setBlockReason] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
@@ -58,11 +60,16 @@ export function UsersPage() {
   const [clearZeroOrderOpen, setClearZeroOrderOpen] = useState(false);
   const [unblockUserId, setUnblockUserId] = useState<number | null>(null);
   const normalizedSearch = search.trim();
-  const { data = [], isLoading, isFetching, error, refetch } = useUsers({
+  const usersQuery = useUsers({
     q: normalizedSearch || undefined,
     profile: profile || undefined,
     sort,
+    page,
+    limit: pageSize,
   });
+  const data = usersQuery.data?.data ?? [];
+  const pagination = usersQuery.data?.meta;
+  const { isLoading, isFetching, error, refetch } = usersQuery;
   const blockUser = useBlockUser();
   const unblockUser = useUnblockUser();
   const deleteUser = useDeleteUser();
@@ -88,6 +95,10 @@ export function UsersPage() {
       toast.error(zeroOrderPreviewErrorMessage, { id: "zero-order-preview-error" });
     }
   }, [zeroOrderPreviewErrorMessage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [normalizedSearch, profile, sort]);
 
   const columns = [
     {
@@ -205,6 +216,7 @@ export function UsersPage() {
     setSearch("");
     setProfile("");
     setSort("CREATED_DESC");
+    setPage(1);
   };
 
   const handleBlockSubmit = async (event: React.FormEvent) => {
@@ -323,7 +335,13 @@ export function UsersPage() {
             columns={columns}
             data={data}
             keyExtractor={(user) => String(user.id)}
-            initialPageSize={10}
+            manualPagination
+            page={page}
+            pageSize={pageSize}
+            total={pagination?.total ?? 0}
+            totalPages={pagination?.totalPages ?? 1}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
             resetKey={tableResetKey}
             loading={isLoading || isFetching}
             emptyMessage="No Telegram users found"

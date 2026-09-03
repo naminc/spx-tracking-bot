@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { apiClient } from "../lib/api/client";
+import { apiClient, type PaginatedResult } from "../lib/api/client";
 import type { User } from "../lib/types/user";
 
 export type UserProfileFilter = "HAS_PROFILE" | "MISSING_PROFILE";
@@ -10,6 +10,8 @@ export type UserFilters = {
   q?: string;
   profile?: UserProfileFilter | "";
   sort?: UserSort;
+  page?: number;
+  limit?: number;
 };
 
 export type DeleteUsersResult = {
@@ -30,12 +32,12 @@ export type ZeroOrderUsersPreview = {
   users: User[];
 };
 
-function toQueryString(params: Record<string, string | undefined>): string {
+function toQueryString(params: Record<string, string | number | undefined>): string {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== "") {
-      searchParams.set(key, value);
+      searchParams.set(key, String(value));
     }
   });
 
@@ -52,16 +54,48 @@ function invalidateUserRelatedQueries(queryClient: ReturnType<typeof useQueryCli
 }
 
 export function useUsers(filters: UserFilters = {}) {
-  return useQuery<User[]>({
+  return useQuery<PaginatedResult<User>>({
     queryKey: ["users", filters],
     queryFn: () =>
-      apiClient.get(
+      apiClient.getPaginated<User>(
         `/admin/users${toQueryString({
           q: filters.q?.trim(),
           profile: filters.profile,
           sort: filters.sort,
+          page: filters.page,
+          limit: filters.limit,
         })}`,
       ),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useUserOptions(filters: UserFilters = {}) {
+  const queryFilters = {
+    ...filters,
+    limit: filters.limit ?? 100,
+    page: filters.page ?? 1,
+  };
+
+  return useQuery<User[]>({
+    queryKey: ["users", "options", queryFilters],
+    queryFn: async () => {
+      const result = await apiClient.getPaginated<User>(
+        `/admin/users${toQueryString({
+          q: queryFilters.q?.trim(),
+          profile: queryFilters.profile,
+          sort: queryFilters.sort,
+          page: queryFilters.page,
+          limit: queryFilters.limit,
+        })}`,
+      );
+
+      return result.data;
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 

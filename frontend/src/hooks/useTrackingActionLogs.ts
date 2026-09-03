@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "../lib/api/client";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { apiClient, type PaginatedResult } from "../lib/api/client";
 import type {
   TrackingOrderActionLog,
   TrackingOrderActionLogFilters,
@@ -19,10 +19,10 @@ function toQueryString(params: Record<string, string | number | undefined>): str
 }
 
 export function useTrackingActionLogs(filters: TrackingOrderActionLogFilters = {}) {
-  return useQuery<TrackingOrderActionLog[]>({
+  return useQuery<PaginatedResult<TrackingOrderActionLog>>({
     queryKey: ["tracking-action-logs", filters],
     queryFn: () =>
-      apiClient.get(
+      apiClient.getPaginated<TrackingOrderActionLog>(
         `/admin/tracking-action-logs${toQueryString({
           carrier: filters.carrier,
           action: filters.action,
@@ -30,8 +30,13 @@ export function useTrackingActionLogs(filters: TrackingOrderActionLogFilters = {
           trackingNumber: filters.trackingNumber?.trim(),
           telegramChatId: filters.telegramChatId?.trim(),
           userId: filters.userId?.trim(),
+          page: filters.page,
           limit: filters.limit,
+          sort: filters.sort,
         })}`,
       ),
+    placeholderData: keepPreviousData,
+    staleTime: 20_000,
+    refetchOnWindowFocus: false,
   });
 }

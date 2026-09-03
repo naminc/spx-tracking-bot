@@ -5,6 +5,22 @@ type ApiResponse<T> = {
   message: string;
   data?: T;
 };
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+export type PaginatedResult<T> = {
+  data: T[];
+  meta: PaginationMeta;
+};
+type ApiPaginatedResponse<T> = {
+  success: true;
+  message: string;
+  data: T[];
+  meta: PaginationMeta;
+};
 type ApiError = {
   success: false;
   message?: string;
@@ -104,8 +120,61 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return (json as ApiResponse<T>).data as T;
 }
 
+async function paginatedRequest<T>(path: string, options?: RequestInit): Promise<PaginatedResult<T>> {
+  let res: Response;
+  const url = joinUrl(getApiBaseUrl(), path);
+
+  try {
+    res = await fetch(url, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      ...options,
+    });
+  } catch {
+    throw new ApiClientError(getNetworkErrorMessage(), "NETWORK_ERROR", 0);
+  }
+
+  const text = await res.text();
+  let json: unknown = {};
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new ApiClientError(
+        "API returned invalid JSON. Please check the backend response.",
+        "INVALID_JSON",
+        res.status
+      );
+    }
+  }
+
+  if (!res.ok) {
+    const err = json as ApiError;
+    const reason =
+      typeof err.errors === "string"
+        ? err.errors
+        : err.errors
+          ? JSON.stringify(err.errors)
+          : undefined;
+
+    throw new ApiClientError(
+      err.message || "Unknown error",
+      "API_ERROR",
+      res.status,
+      reason
+    );
+  }
+
+  const result = json as ApiPaginatedResponse<T>;
+  return {
+    data: result.data,
+    meta: result.meta,
+  };
+}
+
 export const apiClient = {
   get: <T>(path: string) => request<T>(path),
+  getPaginated: <T>(path: string) => paginatedRequest<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: "POST",

@@ -691,7 +691,7 @@ export class TelegramService {
   }
 
   private async sendOrderList(chatId: string, options: SendMessageOptions = {}): Promise<void> {
-    const orders = await this.service.listOrders({
+    const orders = await this.service.listAllOrders({
       telegramChatId: chatId,
       includeCompleted: false,
     });

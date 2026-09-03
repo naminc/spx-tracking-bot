@@ -1,5 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import { env } from '../../../config/env';
+import {
+  getPaginationArgs,
+  type PaginatedRepositoryResult,
+} from '../../../shared/pagination/pagination';
 import { prisma } from '../../../shared/prisma/client';
 import type { ListUsersQuery } from './user.schema';
 
@@ -82,7 +86,11 @@ const buildZeroOrderUserWhere = (): Prisma.UserWhereInput => {
 };
 
 export class UserRepository {
-  async listUsers(filters: Partial<ListUsersQuery> = {}): Promise<UserListEntity[]> {
+  async listUsers(
+    filters: Partial<ListUsersQuery> = {},
+  ): Promise<PaginatedRepositoryResult<UserListEntity>> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
     const q = filters.q?.trim();
     const andFilters: Prisma.UserWhereInput[] = [];
 
@@ -115,13 +123,23 @@ export class UserRepository {
       });
     }
 
-    const users = await prisma.user.findMany({
-      where: andFilters.length > 0 ? { AND: andFilters } : undefined,
-      include: userOrderCountInclude,
-      orderBy: userOrderByBySort[filters.sort ?? 'CREATED_DESC'],
-    });
+    const where = andFilters.length > 0 ? { AND: andFilters } : undefined;
+    const [users, total] = await prisma.$transaction([
+      prisma.user.findMany({
+        where,
+        include: userOrderCountInclude,
+        orderBy: userOrderByBySort[filters.sort ?? 'CREATED_DESC'],
+        ...getPaginationArgs({ page, limit }),
+      }),
+      prisma.user.count({ where }),
+    ]);
 
-    return users.map(toUserListEntity);
+    return {
+      data: users.map(toUserListEntity),
+      total,
+      page,
+      limit,
+    };
   }
 
   upsertUser(input: UpsertUserInput): Promise<UserEntity> {

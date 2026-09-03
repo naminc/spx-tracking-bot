@@ -20,8 +20,9 @@ import {
   useDeleteTrackingOrder,
   useTrackingHistories,
   useTrackingOrders,
+  type OrderSort,
 } from "../hooks/useTracking";
-import { useUsers } from "../hooks/useUsers";
+import { useUserOptions } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -55,11 +56,13 @@ function formatUser(user: TrackingUser | null | undefined) {
 }
 
 function HistoryList({ carrier, trackingNumber }: { carrier: TrackingCarrier; trackingNumber: string }) {
-  const { data = [], isLoading, error, refetch } = useTrackingHistories({
+  const historiesQuery = useTrackingHistories({
     carrier,
     trackingNumber,
     limit: 100,
   });
+  const data = historiesQuery.data?.data ?? [];
+  const { isLoading, error, refetch } = historiesQuery;
 
   const columns = [
     {
@@ -90,11 +93,16 @@ function HistoryList({ carrier, trackingNumber }: { carrier: TrackingCarrier; tr
     },
   ];
 
-  if (isLoading) return null;
   if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
 
-  return data.length > 0 ? (
-    <PaginatedTable columns={columns} data={data} keyExtractor={(history) => String(history.id)} initialPageSize={10} />
+  return data.length > 0 || isLoading ? (
+    <PaginatedTable
+      columns={columns}
+      data={data}
+      keyExtractor={(history) => String(history.id)}
+      initialPageSize={10}
+      loading={isLoading}
+    />
   ) : (
     <EmptyState message="No tracking history found" />
   );
@@ -109,6 +117,9 @@ export function OrdersPage() {
     positiveIntegerPattern.test(userIdFromUrl) ? userIdFromUrl : "",
   );
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("");
+  const [sort, setSort] = useState<OrderSort>("UPDATED_DESC");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [trackingFilterInput, setTrackingFilterInput] = useState("");
   const [addCarrier, setAddCarrier] = useState<CarrierInput>("AUTO");
   const [trackingNumber, setTrackingNumber] = useState("");
@@ -120,18 +131,25 @@ export function OrdersPage() {
   const normalizedAddTrackingNumber = trackingNumber.trim().toUpperCase();
   const normalizedTrackingFilter = trackingFilterInput.trim().toUpperCase();
   const normalizedChatFilter = chatFilter.trim();
-  const { data = [], isLoading, isFetching, error, refetch } = useTrackingOrders({
+  const ordersQuery = useTrackingOrders({
     includeCompleted: true,
     carrier: carrierFilter || undefined,
     trackingNumber: normalizedTrackingFilter || undefined,
     telegramChatId: normalizedChatFilter || undefined,
     userId: userFilter || undefined,
     finalStatus: statusFilter || undefined,
+    page,
+    limit: pageSize,
+    sort,
   });
-  const usersQuery = useUsers();
+  const data = ordersQuery.data?.data ?? [];
+  const pagination = ordersQuery.data?.meta;
+  const { isLoading, isFetching, error, refetch } = ordersQuery;
+  const usersQuery = useUserOptions();
+  const users = usersQuery.data ?? [];
   const createOrder = useCreateTrackingOrder();
   const deleteOrder = useDeleteTrackingOrder();
-  const tableResetKey = `${carrierFilter}|${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}`;
+  const tableResetKey = `${carrierFilter}|${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}|${sort}`;
   const shouldShowGhnCredential = shouldUseGhnCredential(addCarrier, normalizedAddTrackingNumber);
   const shouldShowJntCredential = shouldUseJntCredential(addCarrier, normalizedAddTrackingNumber);
   const shouldShowTrackingCredential = shouldShowGhnCredential || shouldShowJntCredential;
@@ -142,11 +160,11 @@ export function OrdersPage() {
 
   const stats = useMemo(
     () => ({
-      total: data.length,
+      total: pagination?.total ?? 0,
       active: data.filter((order) => !order.isCompleted).length,
       completed: data.filter((order) => order.isCompleted).length,
     }),
-    [data],
+    [data, pagination?.total],
   );
 
   const columns = [
@@ -257,7 +275,7 @@ export function OrdersPage() {
 
     const normalizedTelegramChatId = telegramChatId.trim();
     if (!normalizedTelegramChatId) {
-      toast.error("Vui lòng chọn user hoặc nhập Telegram Chat ID");
+      toast.error("Please select a user or enter Telegram Chat ID");
       return;
     }
 
@@ -300,7 +318,7 @@ export function OrdersPage() {
       return;
     }
 
-    const selectedUser = usersQuery.data?.find((user) => String(user.id) === userId);
+    const selectedUser = users.find((user) => String(user.id) === userId);
     if (selectedUser) {
       setTelegramChatId(selectedUser.telegramUserId);
     }
@@ -312,10 +330,12 @@ export function OrdersPage() {
     setChatFilter("");
     setUserFilter("");
     setStatusFilter("");
+    setSort("UPDATED_DESC");
+    setPage(1);
     setSearchParams({}, { replace: true });
   };
 
-  const tableError = error || usersQuery.error;
+  const tableError = error;
   const tableErrorMessage = tableError ? (tableError as Error).message : "";
 
   useEffect(() => {
@@ -328,6 +348,10 @@ export function OrdersPage() {
     setUserFilter(positiveIntegerPattern.test(userIdFromUrl) ? userIdFromUrl : "");
   }, [userIdFromUrl]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [carrierFilter, normalizedChatFilter, normalizedTrackingFilter, sort, statusFilter, userFilter]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -339,11 +363,11 @@ export function OrdersPage() {
           </div>
           <div className="border-x border-gray-200 px-4 py-2">
             <div className="font-semibold text-gray-900">{stats.active}</div>
-            <div className="text-xs text-gray-500">Active</div>
+            <div className="text-xs text-gray-500">Page Active</div>
           </div>
           <div className="px-4 py-2">
             <div className="font-semibold text-gray-900">{stats.completed}</div>
-            <div className="text-xs text-gray-500">Done</div>
+            <div className="text-xs text-gray-500">Page Done</div>
           </div>
         </div>
       </div>
@@ -377,7 +401,7 @@ export function OrdersPage() {
         />
         <UserFilterSelect
           label="User"
-          users={usersQuery.data ?? []}
+          users={users}
           value={selectedAddUserId}
           onChange={handleAddUserChange}
           placeholder="Select user"
@@ -417,7 +441,7 @@ export function OrdersPage() {
         </div>
       </form>
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_1fr_1fr_1.4fr_180px_auto] md:items-end">
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_1fr_1fr_1.4fr_180px_180px_auto] md:items-end">
         <div>
           <label htmlFor="order-carrier-filter" className="mb-1 block text-sm font-medium text-gray-700">
             Carrier
@@ -448,7 +472,7 @@ export function OrdersPage() {
         />
         <UserFilterSelect
           label="User ID"
-          users={usersQuery.data ?? []}
+          users={users}
           value={userFilter}
           onChange={setUserFilter}
           disabled={usersQuery.isLoading}
@@ -470,6 +494,22 @@ export function OrdersPage() {
             <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
+        <div>
+          <label htmlFor="order-sort" className="mb-1 block text-sm font-medium text-gray-700">
+            Sort
+          </label>
+          <select
+            id="order-sort"
+            value={sort}
+            onChange={(event) => setSort(event.target.value as OrderSort)}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="UPDATED_DESC">Recently updated</option>
+            <option value="LAST_EVENT_DESC">Latest event</option>
+            <option value="CREATED_DESC">Newest created</option>
+            <option value="STATUS">Status</option>
+          </select>
+        </div>
         <Button type="button" variant="secondary" onClick={handleClearFilter}>
           Clear
         </Button>
@@ -489,7 +529,13 @@ export function OrdersPage() {
             columns={columns}
             data={data}
             keyExtractor={(order) => String(order.id)}
-            initialPageSize={10}
+            manualPagination
+            page={page}
+            pageSize={pageSize}
+            total={pagination?.total ?? 0}
+            totalPages={pagination?.totalPages ?? 1}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
             resetKey={tableResetKey}
             loading={isLoading || isFetching}
             emptyMessage="No orders found"

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQueryFields } from '../../shared/validation/pagination.schema';
 import { FinalStatus } from './final-status';
 import {
   TrackingCarrier,
@@ -62,6 +63,7 @@ export const trackingNumberParamsSchema = z.object({
 });
 
 export const listOrdersQuerySchema = z.object({
+  ...paginationQueryFields,
   carrier: trackingCarrierSchema.optional(),
   trackingNumber: trackingNumberFilterSchema.optional(),
   telegramChatId: z.string().trim().min(1).max(64).optional(),
@@ -79,15 +81,23 @@ export const listOrdersQuerySchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((value) => value === 'true'),
+  sort: z
+    .enum(['UPDATED_DESC', 'CREATED_DESC', 'LAST_EVENT_DESC', 'STATUS'])
+    .optional()
+    .default('UPDATED_DESC'),
 });
 
 export const listHistoriesQuerySchema = z.object({
+  ...paginationQueryFields,
   carrier: trackingCarrierSchema.optional(),
   trackingNumber: trackingNumberFilterSchema.optional(),
   telegramChatId: z.string().trim().min(1).max(64).optional(),
   userId: z.coerce.number().int().positive().optional(),
   telegramUserId: z.string().trim().min(1).max(64).optional(),
-  limit: z.coerce.number().int().positive().max(500).optional(),
+  sort: z
+    .enum(['EVENT_DESC', 'EVENT_ASC', 'CREATED_DESC'])
+    .optional()
+    .default('EVENT_DESC'),
 });
 
 export const removeOrderQuerySchema = z.object({

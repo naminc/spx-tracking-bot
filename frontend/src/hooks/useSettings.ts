@@ -7,6 +7,8 @@ export function useSettings() {
   return useQuery<AppSetting>({
     queryKey: ["settings"],
     queryFn: () => apiClient.get("/admin/settings"),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -18,7 +20,7 @@ export function useUpdateSettings() {
       apiClient.put<AppSetting>("/admin/settings", input),
     onSuccess: (settings) => {
       queryClient.setQueryData(["settings"], settings);
-      toast.success("Đã cập nhật cấu hình");
+      toast.success("Settings updated");
     },
     onError: (error: Error) => toast.error(error.message),
   });

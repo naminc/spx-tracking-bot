@@ -1,6 +1,7 @@
 import { env } from '../../config/env';
 import { AppError } from '../../shared/errors/app-error';
 import { logger } from '../../shared/logger/logger';
+import type { PaginatedRepositoryResult, PaginationInput } from '../../shared/pagination/pagination';
 import { GhnService, ghnService } from '../ghn/ghn.service';
 import { JntService, jntService } from '../jnt/jnt.service';
 import { spxService, SpxService } from '../spx/spx.service';
@@ -53,7 +54,8 @@ type ListOrdersFilters = {
   telegramUserId?: string;
   finalStatus?: FinalStatus;
   includeCompleted?: boolean;
-};
+  sort?: 'UPDATED_DESC' | 'CREATED_DESC' | 'LAST_EVENT_DESC' | 'STATUS';
+} & Partial<PaginationInput>;
 
 type ListHistoriesFilters = {
   carrier?: TrackingCarrier;
@@ -61,8 +63,8 @@ type ListHistoriesFilters = {
   telegramChatId?: string;
   userId?: number;
   telegramUserId?: string;
-  limit?: number;
-};
+  sort?: 'EVENT_DESC' | 'EVENT_ASC' | 'CREATED_DESC';
+} & Partial<PaginationInput>;
 
 const normalize = (value: string): string =>
   value
@@ -98,8 +100,14 @@ export class TrackingService {
     private readonly jnt: JntService = jntService,
   ) {}
 
-  listOrders(filters: ListOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+  listOrders(
+    filters: ListOrdersFilters = {},
+  ): Promise<PaginatedRepositoryResult<TrackingOrderEntity>> {
     return this.repository.findOrders(filters);
+  }
+
+  listAllOrders(filters: ListOrdersFilters = {}): Promise<TrackingOrderEntity[]> {
+    return this.repository.findAllOrders(filters);
   }
 
   async getOrder(trackingNumber: string, carrierHint: TrackingCarrier | 'AUTO' = 'AUTO'): Promise<TrackingOrderEntity> {

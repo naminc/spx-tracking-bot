@@ -6,5 +6,7 @@ export function useDashboard() {
   return useQuery<Dashboard>({
     queryKey: ["dashboard"],
     queryFn: () => apiClient.get("/admin/dashboard"),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }

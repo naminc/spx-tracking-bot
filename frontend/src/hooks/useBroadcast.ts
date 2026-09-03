@@ -30,7 +30,7 @@ export function useCreateBroadcast() {
       apiClient.post<BroadcastDetail>("/admin/broadcasts", input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
-      toast.success("Đã tạo broadcast");
+      toast.success("Broadcast draft created");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -51,7 +51,7 @@ export function useSendBroadcast() {
         return;
       }
 
-      toast.success("Đã gửi broadcast");
+      toast.success("Broadcast sent");
     },
     onError: (error: Error) => toast.error(error.message),
   });

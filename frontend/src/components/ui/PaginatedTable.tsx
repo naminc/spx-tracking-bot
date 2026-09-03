@@ -12,6 +12,13 @@ type Props<T> = {
   resetKey?: string | number;
   loading?: boolean;
   emptyMessage?: string;
+  manualPagination?: boolean;
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 };
 
 export function PaginatedTable<T>({
@@ -24,26 +31,71 @@ export function PaginatedTable<T>({
   resetKey,
   loading = false,
   emptyMessage = "No data found",
+  manualPagination = false,
+  page: controlledPage,
+  pageSize: controlledPageSize,
+  total,
+  totalPages: controlledTotalPages,
+  onPageChange,
+  onPageSizeChange,
 }: Props<T>) {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialPageSize);
-  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+  const [internalPage, setInternalPage] = useState(1);
+  const [internalPageSize, setInternalPageSize] = useState(initialPageSize);
+  const page = manualPagination ? controlledPage ?? 1 : internalPage;
+  const pageSize = manualPagination ? controlledPageSize ?? initialPageSize : internalPageSize;
+  const totalItems = manualPagination ? total ?? data.length : data.length;
+  const totalPages = Math.max(
+    1,
+    controlledTotalPages ?? Math.ceil(totalItems / pageSize),
+  );
 
   useEffect(() => {
-    setPage(1);
-  }, [resetKey]);
+    if (!manualPagination) {
+      setInternalPage(1);
+    }
+  }, [manualPagination, resetKey]);
 
   useEffect(() => {
-    setPage((currentPage) => Math.min(currentPage, totalPages));
-  }, [totalPages]);
+    if (!manualPagination) {
+      setInternalPage((currentPage) => Math.min(currentPage, totalPages));
+    }
+  }, [manualPagination, totalPages]);
 
   const pageData = useMemo(() => {
+    if (manualPagination) {
+      return data;
+    }
+
     const start = (page - 1) * pageSize;
     return data.slice(start, start + pageSize);
-  }, [data, page, pageSize]);
+  }, [data, manualPagination, page, pageSize]);
 
-  const startItem = data.length === 0 ? 0 : (page - 1) * pageSize + 1;
-  const endItem = Math.min(page * pageSize, data.length);
+  const startItem = data.length === 0 || totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endItem = manualPagination
+    ? Math.min((page - 1) * pageSize + data.length, totalItems)
+    : Math.min(page * pageSize, totalItems);
+
+  const changePage = (nextPage: number) => {
+    const normalizedPage = Math.min(totalPages, Math.max(1, nextPage));
+
+    if (manualPagination) {
+      onPageChange?.(normalizedPage);
+      return;
+    }
+
+    setInternalPage(normalizedPage);
+  };
+
+  const changePageSize = (nextPageSize: number) => {
+    if (manualPagination) {
+      onPageSizeChange?.(nextPageSize);
+      onPageChange?.(1);
+      return;
+    }
+
+    setInternalPageSize(nextPageSize);
+    setInternalPage(1);
+  };
 
   return (
     <div>
@@ -55,7 +107,7 @@ export function PaginatedTable<T>({
       )}
       <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          Showing {startItem}-{endItem} of {data.length}
+          Showing {startItem}-{endItem} of {totalItems}
           {loading && data.length > 0 ? <span className="ml-2 text-xs text-gray-400">Refreshing...</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -63,10 +115,7 @@ export function PaginatedTable<T>({
             Rows
             <select
               value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
+              onChange={(event) => changePageSize(Number(event.target.value))}
               className="rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               {pageSizeOptions.map((option) => (
@@ -81,7 +130,7 @@ export function PaginatedTable<T>({
             variant="secondary"
             size="sm"
             disabled={page <= 1}
-            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+            onClick={() => changePage(page - 1)}
           >
             Previous
           </Button>
@@ -93,7 +142,7 @@ export function PaginatedTable<T>({
             variant="secondary"
             size="sm"
             disabled={page >= totalPages}
-            onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
+            onClick={() => changePage(page + 1)}
           >
             Next
           </Button>

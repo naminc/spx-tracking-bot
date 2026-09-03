@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
-import { successResponse } from '../../shared/response/api-response';
+import { getPaginationMeta } from '../../shared/pagination/pagination';
+import { paginatedResponse } from '../../shared/response/api-response';
 import {
   TrackingOrderActionLogService,
   trackingOrderActionLogService,
@@ -13,10 +14,17 @@ export class TrackingOrderActionLogController {
   ) {}
 
   listLogs = async (request: Request, response: Response): Promise<void> => {
-    const logs = await this.service.listLogs(
+    const result = await this.service.listLogs(
       request.query as unknown as ListTrackingOrderActionLogsQuery,
     );
-    response.json(successResponse('Lấy lịch sử thao tác đơn hàng thành công', logs));
+
+    response.json(
+      paginatedResponse(
+        'Fetched tracking action logs successfully',
+        result.data,
+        getPaginationMeta(result),
+      ),
+    );
   };
 }
 

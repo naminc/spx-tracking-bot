@@ -3,8 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { TrackingCarrier, TrackingHistory, TrackingUser } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
-import { useTrackingHistories } from "../hooks/useTracking";
-import { useUsers } from "../hooks/useUsers";
+import { useTrackingHistories, type HistorySort } from "../hooks/useTracking";
+import { useUserOptions } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
 import { Button } from "../components/ui/Button";
 import { ErrorState } from "../components/ui/ErrorState";
@@ -41,18 +41,28 @@ export function TrackingHistoryPage() {
   const [trackingInput, setTrackingInput] = useState(initialTrackingNumber);
   const [chatInput, setChatInput] = useState(initialChatId);
   const [userInput, setUserInput] = useState(initialUserId);
+  const [sort, setSort] = useState<HistorySort>("EVENT_DESC");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [selectedHistory, setSelectedHistory] = useState<TrackingHistory | null>(null);
   const normalizedTrackingNumber = trackingInput.trim().toUpperCase();
   const normalizedChatId = chatInput.trim();
   const normalizedUserId = userInput.trim();
-  const { data = [], isLoading, isFetching, error, refetch } = useTrackingHistories({
+  const historiesQuery = useTrackingHistories({
     carrier: carrierInput || undefined,
     trackingNumber: normalizedTrackingNumber || undefined,
     telegramChatId: normalizedChatId || undefined,
     userId: normalizedUserId || undefined,
+    page,
+    limit: pageSize,
+    sort,
   });
-  const usersQuery = useUsers();
-  const tableResetKey = `${carrierInput}|${normalizedTrackingNumber}|${normalizedChatId}|${normalizedUserId}`;
+  const data = historiesQuery.data?.data ?? [];
+  const pagination = historiesQuery.data?.meta;
+  const { isLoading, isFetching, error, refetch } = historiesQuery;
+  const usersQuery = useUserOptions();
+  const users = usersQuery.data ?? [];
+  const tableResetKey = `${carrierInput}|${normalizedTrackingNumber}|${normalizedChatId}|${normalizedUserId}|${sort}`;
 
   useEffect(() => {
     const nextFilters = {
@@ -81,6 +91,10 @@ export function TrackingHistoryPage() {
 
     setSearchParams(nextSearchParams, { replace: true });
   }, [carrierInput, normalizedChatId, normalizedTrackingNumber, normalizedUserId, setSearchParams]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [carrierInput, normalizedChatId, normalizedTrackingNumber, normalizedUserId, sort]);
 
   const columns = [
     {
@@ -144,10 +158,12 @@ export function TrackingHistoryPage() {
     setTrackingInput("");
     setChatInput("");
     setUserInput("");
+    setSort("EVENT_DESC");
+    setPage(1);
     setSearchParams({}, { replace: true });
   };
 
-  const tableError = error || usersQuery.error;
+  const tableError = error;
   const tableErrorMessage = tableError ? (tableError as Error).message : "";
 
   useEffect(() => {
@@ -160,7 +176,7 @@ export function TrackingHistoryPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Tracking History</h1>
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_1fr_1fr_1.4fr_auto] md:items-end">
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-[150px_1fr_1fr_1.4fr_180px_auto] md:items-end">
         <div>
           <label htmlFor="history-carrier-filter" className="mb-1 block text-sm font-medium text-gray-700">
             Carrier
@@ -191,11 +207,26 @@ export function TrackingHistoryPage() {
         />
         <UserFilterSelect
           label="User ID"
-          users={usersQuery.data ?? []}
+          users={users}
           value={userInput}
           onChange={setUserInput}
           disabled={usersQuery.isLoading}
         />
+        <div>
+          <label htmlFor="history-sort" className="mb-1 block text-sm font-medium text-gray-700">
+            Sort
+          </label>
+          <select
+            id="history-sort"
+            value={sort}
+            onChange={(event) => setSort(event.target.value as HistorySort)}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="EVENT_DESC">Newest event</option>
+            <option value="EVENT_ASC">Oldest event</option>
+            <option value="CREATED_DESC">Newest row</option>
+          </select>
+        </div>
         <Button type="button" variant="secondary" onClick={handleClear}>
           Clear
         </Button>
@@ -216,7 +247,13 @@ export function TrackingHistoryPage() {
             data={data}
             keyExtractor={(history) => String(history.id)}
             onRowClick={setSelectedHistory}
-            initialPageSize={10}
+            manualPagination
+            page={page}
+            pageSize={pageSize}
+            total={pagination?.total ?? 0}
+            totalPages={pagination?.totalPages ?? 1}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
             resetKey={tableResetKey}
             loading={isLoading || isFetching}
             emptyMessage="No tracking history found"

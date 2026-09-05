@@ -31,6 +31,10 @@ import { ErrorState } from "../components/ui/ErrorState";
 type ProfileFilterValue = UserProfileFilter | "";
 type CarrierInput = TrackingCarrier | "AUTO";
 const maxOrderNoteLength = 512;
+const menuItemClass =
+  "block w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50";
+const dangerMenuItemClass =
+  "block w-full px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50";
 
 function parseUserIdTokens(value: string) {
   const tokens = value
@@ -74,6 +78,8 @@ export function UsersPage() {
   const [bulkDeleteInput, setBulkDeleteInput] = useState("");
   const [clearZeroOrderOpen, setClearZeroOrderOpen] = useState(false);
   const [unblockUserId, setUnblockUserId] = useState<number | null>(null);
+  const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
+  const [openActionUserId, setOpenActionUserId] = useState<number | null>(null);
   const normalizedSearch = search.trim();
   const usersQuery = useUsers({
     q: normalizedSearch || undefined,
@@ -130,6 +136,32 @@ export function UsersPage() {
     setPage(1);
   }, [normalizedSearch, profile, sort]);
 
+  useEffect(() => {
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-users-menu]")) {
+        return;
+      }
+
+      setBulkActionsOpen(false);
+      setOpenActionUserId(null);
+    };
+
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setBulkActionsOpen(false);
+        setOpenActionUserId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    document.addEventListener("keydown", handleDocumentKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+      document.removeEventListener("keydown", handleDocumentKeyDown);
+    };
+  }, []);
+
   const columns = [
     {
       key: "id",
@@ -159,7 +191,16 @@ export function UsersPage() {
     {
       key: "ordersCount",
       header: "Orders",
-      render: (user: User) => <span className="font-mono text-xs">{user.ordersCount}</span>,
+      render: (user: User) => (
+        <button
+          type="button"
+          className="font-mono text-xs font-semibold text-indigo-600 underline-offset-2 transition hover:text-indigo-700 hover:underline"
+          onClick={() => navigate(`/orders?userId=${user.id}`)}
+          title={`View orders for user #${user.id}`}
+        >
+          {user.ordersCount}
+        </button>
+      ),
     },
     {
       key: "status",
@@ -183,70 +224,107 @@ export function UsersPage() {
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => setAddOrderTarget(user)}
+            onClick={() => {
+              setBulkActionsOpen(false);
+              setOpenActionUserId(null);
+              setAddOrderTarget(user);
+            }}
           >
             Add Order
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => navigate(`/orders?userId=${user.id}`)}
-          >
-            Orders
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => navigate(`/tracking-history?userId=${user.id}`)}
-          >
-            History
-          </Button>
-          {user.isBlocked ? (
+          <div className="relative" data-users-menu>
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              loading={unblockUser.isPending && unblockUserId === user.id}
-              onClick={async () => {
-                if (!window.confirm(`Unblock user #${user.id}?`)) return;
-
-                setUnblockUserId(user.id);
-                try {
-                  await unblockUser.mutateAsync(user.id);
-                } finally {
-                  setUnblockUserId(null);
-                }
-              }}
-            >
-              Unblock
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="danger"
-              size="sm"
+              aria-haspopup="menu"
+              aria-expanded={openActionUserId === user.id}
               onClick={() => {
-                setBlockTarget(user);
-                setBlockReason("");
+                setBulkActionsOpen(false);
+                setOpenActionUserId((currentUserId) => (currentUserId === user.id ? null : user.id));
               }}
             >
-              Block
+              Actions
             </Button>
-          )}
-          <Button
-            type="button"
-            variant="danger"
-            size="sm"
-            loading={deleteUser.isPending && deleteTarget?.id === user.id}
-            onClick={() => setDeleteTarget(user)}
-          >
-            Delete
-          </Button>
+            {openActionUserId === user.id ? (
+              <div
+                role="menu"
+                className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 text-left shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={menuItemClass}
+                  onClick={() => {
+                    setOpenActionUserId(null);
+                    navigate(`/orders?userId=${user.id}`);
+                  }}
+                >
+                  View orders
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={menuItemClass}
+                  onClick={() => {
+                    setOpenActionUserId(null);
+                    navigate(`/tracking-history?userId=${user.id}`);
+                  }}
+                >
+                  View history
+                </button>
+                {user.isBlocked ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={menuItemClass}
+                    disabled={unblockUser.isPending && unblockUserId === user.id}
+                    onClick={async () => {
+                      if (!window.confirm(`Unblock user #${user.id}?`)) return;
+
+                      setOpenActionUserId(null);
+                      setUnblockUserId(user.id);
+                      try {
+                        await unblockUser.mutateAsync(user.id);
+                      } finally {
+                        setUnblockUserId(null);
+                      }
+                    }}
+                  >
+                    Unblock user
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={dangerMenuItemClass}
+                    onClick={() => {
+                      setOpenActionUserId(null);
+                      setBlockTarget(user);
+                      setBlockReason("");
+                    }}
+                  >
+                    Block user
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={dangerMenuItemClass}
+                  disabled={deleteUser.isPending && deleteTarget?.id === user.id}
+                  onClick={() => {
+                    setOpenActionUserId(null);
+                    setDeleteTarget(user);
+                  }}
+                >
+                  Delete user
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       ),
-      className: "text-right",
+      className: "overflow-visible text-right",
     },
   ];
 
@@ -361,13 +439,48 @@ export function UsersPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Telegram Users</h1>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" onClick={() => setClearZeroOrderOpen(true)}>
-            Clear zero-order users
+        <div className="relative self-start sm:self-auto" data-users-menu>
+          <Button
+            type="button"
+            variant="secondary"
+            aria-haspopup="menu"
+            aria-expanded={bulkActionsOpen}
+            onClick={() => {
+              setOpenActionUserId(null);
+              setBulkActionsOpen((currentValue) => !currentValue);
+            }}
+          >
+            Bulk actions
           </Button>
-          <Button type="button" variant="danger" onClick={() => setBulkDeleteOpen(true)}>
-            Delete by IDs
-          </Button>
+          {bulkActionsOpen ? (
+            <div
+              role="menu"
+              className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className={menuItemClass}
+                onClick={() => {
+                  setBulkActionsOpen(false);
+                  setClearZeroOrderOpen(true);
+                }}
+              >
+                Clear zero-order users
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className={dangerMenuItemClass}
+                onClick={() => {
+                  setBulkActionsOpen(false);
+                  setBulkDeleteOpen(true);
+                }}
+              >
+                Delete by IDs
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 

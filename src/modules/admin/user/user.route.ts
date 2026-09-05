@@ -4,6 +4,7 @@ import { validateRequest } from '../../../shared/validation/validate-request';
 import { userController } from './user.controller';
 import {
   blockUserBodySchema,
+  broadcastUserOptionsQuerySchema,
   bulkDeleteUsersBodySchema,
   listUsersQuerySchema,
   userIdParamsSchema,
@@ -22,6 +23,12 @@ userRouter.get(
   '/options',
   validateRequest({ query: userOptionsQuerySchema }),
   asyncHandler(userController.listUserOptions),
+);
+
+userRouter.get(
+  '/broadcast-options',
+  validateRequest({ query: broadcastUserOptionsQuerySchema }),
+  asyncHandler(userController.listBroadcastUserOptions),
 );
 
 userRouter.get(

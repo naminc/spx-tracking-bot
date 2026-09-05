@@ -70,13 +70,30 @@ export class BroadcastRepository {
     });
   }
 
+  findBroadcastSummaryById(id: number): Promise<BroadcastEntity | null> {
+    return prisma.broadcast.findUnique({
+      where: { id },
+    });
+  }
+
   findUsersForBroadcast(targetType: BroadcastTargetType, userIds: number[] = []) {
     return prisma.user.findMany({
       where:
         targetType === 'ALL_USERS'
-          ? { telegramUserId: { not: '' } }
-          : { id: { in: userIds }, telegramUserId: { not: '' } },
+          ? { telegramUserId: { not: '' }, isBlocked: false }
+          : { id: { in: userIds }, telegramUserId: { not: '' }, isBlocked: false },
       select: userSelect,
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  listFailedRecipients(broadcastId: number): Promise<BroadcastRecipientEntity[]> {
+    return prisma.broadcastRecipient.findMany({
+      where: {
+        broadcastId,
+        status: BroadcastRecipientStatus.FAILED,
+      },
+      include: recipientInclude,
       orderBy: { id: 'asc' },
     });
   }
@@ -148,12 +165,14 @@ export class BroadcastRepository {
   markRecipientFailed(
     id: number,
     errorMessage: string,
+    failedAt: Date,
   ): Promise<BroadcastRecipientEntity> {
     return prisma.broadcastRecipient.update({
       where: { id },
       data: {
         status: BroadcastRecipientStatus.FAILED,
         errorMessage,
+        sentAt: failedAt,
       },
       include: recipientInclude,
     });

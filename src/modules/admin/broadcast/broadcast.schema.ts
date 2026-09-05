@@ -18,7 +18,7 @@ export const createBroadcastSchema = z
       .max(4096, 'Message must be at most 4096 characters'),
     parseMode: broadcastParseModeSchema.optional().default('HTML'),
     targetType: broadcastTargetTypeSchema,
-    userIds: z.array(z.coerce.number().int().positive()).optional().default([]),
+    userIds: z.array(z.coerce.number().int().positive()).max(5000).optional().default([]),
   })
   .refine(
     (value) => value.targetType !== 'SELECTED_USERS' || value.userIds.length > 0,
@@ -32,5 +32,22 @@ export const broadcastIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+export const failedRecipientsExportQuerySchema = z.object({
+  format: z.enum(['csv', 'txt']).optional().default('txt'),
+  reason: z
+    .enum([
+      'all',
+      'bot_blocked',
+      'chat_not_found',
+      'deactivated',
+      'telegram_parse_error',
+      'telegram_error',
+      'unreachable',
+    ])
+    .optional()
+    .default('all'),
+});
+
 export type BroadcastTargetType = z.infer<typeof broadcastTargetTypeSchema>;
 export type CreateBroadcastInput = z.infer<typeof createBroadcastSchema>;
+export type FailedRecipientsExportQuery = z.infer<typeof failedRecipientsExportQuerySchema>;

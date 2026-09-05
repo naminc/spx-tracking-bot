@@ -5,7 +5,11 @@ import {
   type PaginatedRepositoryResult,
 } from '../../../shared/pagination/pagination';
 import { prisma } from '../../../shared/prisma/client';
-import type { ListUsersQuery, UserOptionsQuery } from './user.schema';
+import type {
+  BroadcastUserOptionsQuery,
+  ListUsersQuery,
+  UserOptionsQuery,
+} from './user.schema';
 
 export type UserEntity = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
 type UserWithOrderCountEntity = Prisma.UserGetPayload<{
@@ -183,6 +187,58 @@ export class UserRepository {
     }
 
     return Array.from(userMap.values()).map(toUserListEntity);
+  }
+
+  async listBroadcastUserOptions(
+    filters: BroadcastUserOptionsQuery,
+  ): Promise<PaginatedRepositoryResult<UserListEntity>> {
+    const page = filters.page;
+    const limit = filters.limit;
+    const q = filters.q?.trim();
+    const normalizedUsername = q?.replace(/^@/, '');
+    const searchAsNumber =
+      q && /^[1-9]\d*$/.test(q) && Number(q) <= 2147483647
+        ? Number(q)
+        : null;
+    const andFilters: Prisma.UserWhereInput[] = [
+      { telegramUserId: { not: '' } },
+    ];
+
+    if (!filters.includeBlocked) {
+      andFilters.push({ isBlocked: false });
+    }
+
+    if (q) {
+      andFilters.push({
+        OR: [
+          { telegramUserId: { contains: q } },
+          ...(normalizedUsername
+            ? [{ username: { contains: normalizedUsername } }]
+            : []),
+          { firstName: { contains: q } },
+          { lastName: { contains: q } },
+          ...(searchAsNumber ? [{ id: searchAsNumber }] : []),
+        ],
+      });
+    }
+
+    const where = { AND: andFilters };
+    const [users, total] = await prisma.$transaction([
+      prisma.user.findMany({
+        where,
+        include: userOrderCountInclude,
+        orderBy: [{ orders: { _count: 'desc' } }, { createdAt: 'desc' }],
+        ...getPaginationArgs({ page, limit }),
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users.map(toUserListEntity),
+      total,
+      page,
+      limit,
+    };
   }
 
   upsertUser(input: UpsertUserInput): Promise<UserEntity> {

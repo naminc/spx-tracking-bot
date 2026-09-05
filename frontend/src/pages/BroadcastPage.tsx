@@ -1,7 +1,13 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { useBroadcastDetail, useBroadcasts, useCreateBroadcast, useSendBroadcast } from "../hooks/useBroadcast";
-import { useUserOptions } from "../hooks/useUsers";
+import {
+  useBroadcastDetail,
+  useBroadcasts,
+  useCreateBroadcast,
+  useExportFailedBroadcastRecipients,
+  useSendBroadcast,
+} from "../hooks/useBroadcast";
+import { useBroadcastUserOptions } from "../hooks/useUsers";
 import { formatDate } from "../lib/format";
 import type {
   Broadcast,
@@ -44,19 +50,47 @@ export function BroadcastPage() {
   const [message, setMessage] = useState("");
   const [targetType, setTargetType] = useState<BroadcastTargetType>("ALL_USERS");
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
   const [detailId, setDetailId] = useState<number | null>(null);
   const [sendId, setSendId] = useState<number | null>(null);
   const [sendTarget, setSendTarget] = useState<Broadcast | BroadcastDetail | null>(null);
 
   const broadcastsQuery = useBroadcasts();
-  const usersQuery = useUserOptions();
+  const userOptionsQuery = useBroadcastUserOptions({
+    q: debouncedUserSearch,
+    enabled: targetType === "SELECTED_USERS",
+    limit: 50,
+  });
   const detailQuery = useBroadcastDetail(detailId);
   const createBroadcast = useCreateBroadcast();
   const sendBroadcast = useSendBroadcast();
+  const exportFailedRecipients = useExportFailedBroadcastRecipients();
 
   const selectedUserIdSet = useMemo(() => new Set(selectedUserIds), [selectedUserIds]);
-  const users = usersQuery.data ?? [];
+  const users = useMemo(
+    () => userOptionsQuery.data?.pages.flatMap((page) => page.data) ?? [],
+    [userOptionsQuery.data],
+  );
+  const totalSelectableUsers = userOptionsQuery.data?.pages[0]?.meta.total ?? 0;
   const broadcasts = broadcastsQuery.data ?? [];
+  const userOptionsErrorMessage = userOptionsQuery.error
+    ? (userOptionsQuery.error as Error).message
+    : "";
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedUserSearch(userSearch.trim());
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [userSearch]);
+
+  useEffect(() => {
+    if (targetType === "SELECTED_USERS" && userOptionsErrorMessage) {
+      toast.error(userOptionsErrorMessage, { id: "broadcast-user-options-error" });
+    }
+  }, [targetType, userOptionsErrorMessage]);
 
   const handleToggleUser = (userId: number) => {
     setSelectedUserIds((currentIds) =>
@@ -64,6 +98,12 @@ export function BroadcastPage() {
         ? currentIds.filter((id) => id !== userId)
         : [...currentIds, userId],
     );
+  };
+
+  const handleSelectLoadedUsers = () => {
+    setSelectedUserIds((currentIds) => [
+      ...new Set([...currentIds, ...users.map((user) => user.id)]),
+    ]);
   };
 
   const handleCreate = async (event: FormEvent) => {
@@ -94,6 +134,8 @@ export function BroadcastPage() {
       setTitle("");
       setMessage("");
       setSelectedUserIds([]);
+      setUserSearch("");
+      setDebouncedUserSearch("");
       setTargetType("ALL_USERS");
       setDetailId(broadcast.id);
     } catch {
@@ -108,6 +150,18 @@ export function BroadcastPage() {
       await sendBroadcast.mutateAsync(sendId);
       setSendId(null);
       setSendTarget(null);
+    } catch {
+      // Toast is handled in the mutation.
+    }
+  };
+
+  const handleExportFailed = async (
+    id: number,
+    format: "txt" | "csv",
+    reason: "all" | "unreachable" = "all",
+  ) => {
+    try {
+      await exportFailedRecipients.mutateAsync({ id, format, reason });
     } catch {
       // Toast is handled in the mutation.
     }
@@ -235,14 +289,12 @@ export function BroadcastPage() {
     },
   ];
 
-  if (broadcastsQuery.isLoading || usersQuery.isLoading) return null;
-  if (broadcastsQuery.error || usersQuery.error) {
+  if (broadcastsQuery.error) {
     return (
       <ErrorState
-        message={((broadcastsQuery.error || usersQuery.error) as Error).message}
+        message={(broadcastsQuery.error as Error).message}
         onRetry={() => {
           broadcastsQuery.refetch();
-          usersQuery.refetch();
         }}
       />
     );
@@ -255,7 +307,7 @@ export function BroadcastPage() {
       <h1 className="text-2xl font-bold text-gray-900">Broadcasts</h1>
 
       <form onSubmit={handleCreate} className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
+        <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
           <div className="space-y-3">
             <Input
               label="Title"
@@ -318,36 +370,78 @@ export function BroadcastPage() {
               </div>
             </div>
 
-            {targetType === "SELECTED_USERS" && (
+            {targetType === "ALL_USERS" ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                This broadcast will be sent to all active Telegram users. Blocked users are skipped.
+              </div>
+            ) : (
               <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-700">Users</label>
-                  <button
+                <Input
+                  label="Search users"
+                  placeholder="Telegram ID, username, name..."
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.target.value)}
+                />
+
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-500">
+                    {selectedUserIds.length} selected
+                    {totalSelectableUsers > 0 ? ` | ${totalSelectableUsers} match${totalSelectableUsers === 1 ? "" : "es"}` : ""}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:text-gray-400"
+                      disabled={users.length === 0}
+                      onClick={handleSelectLoadedUsers}
+                    >
+                      Select loaded
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-gray-600 hover:text-gray-900 disabled:text-gray-400"
+                      disabled={selectedUserIds.length === 0}
+                      onClick={() => setSelectedUserIds([])}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 max-h-52 space-y-2 overflow-auto rounded-lg border border-gray-200 p-3 text-sm">
+                  {userOptionsQuery.isLoading ? (
+                    <div className="py-4 text-center text-sm text-gray-500">Loading users...</div>
+                  ) : users.length > 0 ? (
+                    users.map((user) => (
+                      <label key={user.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIdSet.has(user.id)}
+                          onChange={() => handleToggleUser(user.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {formatUser(user)} | <span className="font-mono text-xs">{user.telegramUserId}</span>
+                        </span>
+                      </label>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-sm text-gray-500">No active users found</div>
+                  )}
+                </div>
+
+                {userOptionsQuery.hasNextPage ? (
+                  <Button
                     type="button"
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                    onClick={() => setSelectedUserIds(users.map((user) => user.id))}
+                    variant="secondary"
+                    size="sm"
+                    className="mt-2 w-full"
+                    loading={userOptionsQuery.isFetchingNextPage}
+                    onClick={() => userOptionsQuery.fetchNextPage()}
                   >
-                    Select all
-                  </button>
-                </div>
-                <div className="max-h-44 space-y-2 overflow-auto rounded-lg border border-gray-200 p-3 text-sm">
-                  {users.map((user) => (
-                    <label key={user.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedUserIdSet.has(user.id)}
-                        onChange={() => handleToggleUser(user.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="truncate">
-                        {formatUser(user)} · <span className="font-mono text-xs">{user.telegramUserId}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  {selectedUserIds.length} selected
-                </div>
+                    Load more
+                  </Button>
+                ) : null}
               </div>
             )}
 
@@ -359,7 +453,9 @@ export function BroadcastPage() {
       </form>
 
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        {broadcasts.length > 0 ? (
+        {broadcastsQuery.isLoading ? (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading broadcasts...</div>
+        ) : broadcasts.length > 0 ? (
           <PaginatedTable
             columns={broadcastColumns}
             data={broadcasts}
@@ -411,7 +507,7 @@ export function BroadcastPage() {
               <div>
                 <dt className="text-gray-500">Recipients</dt>
                 <dd className="text-gray-900">
-                  {detail.sentCount}/{detail.totalCount} sent · {detail.failedCount} failed
+                  {detail.sentCount}/{detail.totalCount} sent | {detail.failedCount} failed
                 </dd>
               </div>
               <div>
@@ -429,6 +525,46 @@ export function BroadcastPage() {
                 </dd>
               </div>
             </dl>
+
+            {detail.failedCount > 0 ? (
+              <div className="flex flex-col gap-3 rounded-lg border border-red-100 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-red-900">Failed recipients</h3>
+                  <p className="text-xs text-red-700">
+                    Export Telegram IDs to review or paste into Delete by IDs.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    loading={exportFailedRecipients.isPending}
+                    onClick={() => handleExportFailed(detail.id, "txt")}
+                  >
+                    Export failed TXT
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={exportFailedRecipients.isPending}
+                    onClick={() => handleExportFailed(detail.id, "csv")}
+                  >
+                    Export failed CSV
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={exportFailedRecipients.isPending}
+                    onClick={() => handleExportFailed(detail.id, "txt", "unreachable")}
+                  >
+                    Export unreachable TXT
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
             {canSendBroadcast(detail) && (
               <div className="flex justify-end">

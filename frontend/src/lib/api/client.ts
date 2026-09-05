@@ -26,6 +26,10 @@ type ApiError = {
   message?: string;
   errors?: unknown;
 };
+export type DownloadResult = {
+  blob: Blob;
+  filename: string | null;
+};
 
 export class ApiClientError extends Error {
   code: string;
@@ -172,9 +176,65 @@ async function paginatedRequest<T>(path: string, options?: RequestInit): Promise
   };
 }
 
+function getFilenameFromContentDisposition(contentDisposition: string | null): string | null {
+  if (!contentDisposition) {
+    return null;
+  }
+
+  const utf8FilenameMatch = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
+  if (utf8FilenameMatch?.[1]) {
+    return decodeURIComponent(utf8FilenameMatch[1]);
+  }
+
+  const filenameMatch = /filename="?([^";]+)"?/i.exec(contentDisposition);
+  return filenameMatch?.[1] ?? null;
+}
+
+async function downloadRequest(path: string): Promise<DownloadResult> {
+  let res: Response;
+  const url = joinUrl(getApiBaseUrl(), path);
+
+  try {
+    res = await fetch(url, {
+      credentials: "include",
+    });
+  } catch {
+    throw new ApiClientError(getNetworkErrorMessage(), "NETWORK_ERROR", 0);
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    let message = "Unknown error";
+    let reason: string | undefined;
+
+    if (text) {
+      try {
+        const err = JSON.parse(text) as ApiError;
+        message = err.message || message;
+        reason =
+          typeof err.errors === "string"
+            ? err.errors
+            : err.errors
+              ? JSON.stringify(err.errors)
+              : undefined;
+      } catch {
+        message = text;
+      }
+    }
+
+    throw new ApiClientError(message, "API_ERROR", res.status, reason);
+  }
+
+  return {
+    blob: await res.blob(),
+    filename: getFilenameFromContentDisposition(res.headers.get("Content-Disposition")),
+  };
+}
+
 export const apiClient = {
   get: <T>(path: string) => request<T>(path),
   getPaginated: <T>(path: string) => paginatedRequest<T>(path),
+  download: (path: string) => downloadRequest(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: "POST",

@@ -18,6 +18,22 @@ export const userOptionsQuerySchema = z.object({
 
 export type UserOptionsQuery = z.infer<typeof userOptionsQuerySchema>;
 
+const booleanQueryField = z.preprocess((value) => {
+  if (value === undefined) return undefined;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}, z.boolean().optional().default(false));
+
+export const broadcastUserOptionsQuerySchema = z.object({
+  q: z.string().trim().max(128).optional(),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  includeBlocked: booleanQueryField,
+});
+
+export type BroadcastUserOptionsQuery = z.infer<typeof broadcastUserOptionsQuerySchema>;
+
 export const userIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });

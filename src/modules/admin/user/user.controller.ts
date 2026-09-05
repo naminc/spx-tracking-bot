@@ -6,6 +6,7 @@ import { authService } from '../auth/auth.service';
 import { UserRepository, userRepository } from './user.repository';
 import type {
   BlockUserBody,
+  BroadcastUserOptionsQuery,
   BulkDeleteUsersBody,
   ListUsersQuery,
   UserIdParams,
@@ -31,6 +32,19 @@ export class UserController {
       request.query as unknown as UserOptionsQuery,
     );
     response.json(successResponse('Fetched user options successfully', users));
+  };
+
+  listBroadcastUserOptions = async (request: Request, response: Response): Promise<void> => {
+    const result = await this.repository.listBroadcastUserOptions(
+      request.query as unknown as BroadcastUserOptionsQuery,
+    );
+    response.json(
+      paginatedResponse(
+        'Fetched broadcast user options successfully',
+        result.data,
+        getPaginationMeta(result),
+      ),
+    );
   };
 
   previewZeroOrderUsers = async (_request: Request, response: Response): Promise<void> => {

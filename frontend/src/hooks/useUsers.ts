@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient, type PaginatedResult } from "../lib/api/client";
 import type { User } from "../lib/types/user";
@@ -12,6 +18,13 @@ export type UserFilters = {
   sort?: UserSort;
   page?: number;
   limit?: number;
+};
+
+export type BroadcastUserOptionsFilters = {
+  q?: string;
+  limit?: number;
+  includeBlocked?: boolean;
+  enabled?: boolean;
 };
 
 export type DeleteUsersResult = {
@@ -48,6 +61,7 @@ function toQueryString(params: Record<string, string | number | undefined>): str
 function invalidateUserRelatedQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["users"] });
   queryClient.invalidateQueries({ queryKey: ["user-options"] });
+  queryClient.invalidateQueries({ queryKey: ["users", "broadcast-options"] });
   queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
   queryClient.invalidateQueries({ queryKey: ["tracking-histories"] });
   queryClient.invalidateQueries({ queryKey: ["tracking-action-logs"] });
@@ -96,6 +110,33 @@ export function useUserOptions(filters: UserFilters = {}) {
 
       return result.data;
     },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useBroadcastUserOptions(filters: BroadcastUserOptionsFilters = {}) {
+  const queryFilters = {
+    q: filters.q?.trim() || undefined,
+    limit: filters.limit ?? 50,
+    includeBlocked: filters.includeBlocked ? "true" : "false",
+  };
+
+  return useInfiniteQuery<PaginatedResult<User>>({
+    queryKey: ["users", "broadcast-options", queryFilters],
+    queryFn: ({ pageParam }) =>
+      apiClient.getPaginated<User>(
+        `/admin/users/broadcast-options${toQueryString({
+          q: queryFilters.q,
+          limit: queryFilters.limit,
+          includeBlocked: queryFilters.includeBlocked,
+          page: Number(pageParam),
+        })}`,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.page < lastPage.meta.totalPages ? lastPage.meta.page + 1 : undefined,
+    enabled: filters.enabled ?? true,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });

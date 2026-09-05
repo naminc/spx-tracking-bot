@@ -6,11 +6,21 @@ import { broadcastController } from './broadcast.controller';
 import {
   broadcastIdParamsSchema,
   createBroadcastSchema,
+  failedRecipientsExportQuerySchema,
 } from './broadcast.schema';
 
 export const broadcastRouter = Router();
 
 broadcastRouter.get('/', asyncHandler(broadcastController.listBroadcasts));
+
+broadcastRouter.get(
+  '/:id/failed-recipients/export',
+  validateRequest({
+    params: broadcastIdParamsSchema,
+    query: failedRecipientsExportQuerySchema,
+  }),
+  asyncHandler(broadcastController.exportFailedRecipients),
+);
 
 broadcastRouter.get(
   '/:id',

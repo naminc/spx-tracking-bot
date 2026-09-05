@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import type { TrackingCarrier, TrackingHistory, TrackingUser } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
 import { useTrackingHistories, type HistorySort } from "../hooks/useTracking";
-import { useUserOptions } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
 import { Button } from "../components/ui/Button";
 import { ErrorState } from "../components/ui/ErrorState";
@@ -60,8 +59,6 @@ export function TrackingHistoryPage() {
   const data = historiesQuery.data?.data ?? [];
   const pagination = historiesQuery.data?.meta;
   const { isLoading, isFetching, error, refetch } = historiesQuery;
-  const usersQuery = useUserOptions();
-  const users = usersQuery.data ?? [];
   const tableResetKey = `${carrierInput}|${normalizedTrackingNumber}|${normalizedChatId}|${normalizedUserId}|${sort}`;
 
   useEffect(() => {
@@ -207,10 +204,8 @@ export function TrackingHistoryPage() {
         />
         <UserFilterSelect
           label="User ID"
-          users={users}
           value={userInput}
           onChange={setUserInput}
-          disabled={usersQuery.isLoading}
         />
         <div>
           <label htmlFor="history-sort" className="mb-1 block text-sm font-medium text-gray-700">
@@ -238,7 +233,6 @@ export function TrackingHistoryPage() {
             message={(tableError as Error).message}
             onRetry={() => {
               refetch();
-              usersQuery.refetch();
             }}
           />
         ) : (

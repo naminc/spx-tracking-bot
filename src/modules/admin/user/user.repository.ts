@@ -5,7 +5,7 @@ import {
   type PaginatedRepositoryResult,
 } from '../../../shared/pagination/pagination';
 import { prisma } from '../../../shared/prisma/client';
-import type { ListUsersQuery } from './user.schema';
+import type { ListUsersQuery, UserOptionsQuery } from './user.schema';
 
 export type UserEntity = Awaited<ReturnType<typeof prisma.user.findMany>>[number];
 type UserWithOrderCountEntity = Prisma.UserGetPayload<{
@@ -140,6 +140,49 @@ export class UserRepository {
       page,
       limit,
     };
+  }
+
+  async listUserOptions(filters: UserOptionsQuery): Promise<UserListEntity[]> {
+    const search = filters.search?.trim();
+    const normalizedUsername = search?.replace(/^@/, '');
+    const searchAsNumber =
+      search && /^[1-9]\d*$/.test(search) && Number(search) <= 2147483647
+        ? Number(search)
+        : null;
+    const where: Prisma.UserWhereInput | undefined = search
+      ? {
+          OR: [
+            { telegramUserId: { contains: search } },
+            ...(normalizedUsername
+              ? [{ username: { contains: normalizedUsername } }]
+              : []),
+            { firstName: { contains: search } },
+            { lastName: { contains: search } },
+            ...(searchAsNumber ? [{ id: searchAsNumber }] : []),
+          ],
+        }
+      : undefined;
+
+    const users = await prisma.user.findMany({
+      where,
+      include: userOrderCountInclude,
+      orderBy: [{ orders: { _count: 'desc' } }, { createdAt: 'desc' }],
+      take: filters.limit,
+    });
+    const userMap = new Map(users.map((user) => [user.id, user]));
+
+    if (filters.selectedUserId && !userMap.has(filters.selectedUserId)) {
+      const selectedUser = await prisma.user.findUnique({
+        where: { id: filters.selectedUserId },
+        include: userOrderCountInclude,
+      });
+
+      if (selectedUser) {
+        userMap.set(selectedUser.id, selectedUser);
+      }
+    }
+
+    return Array.from(userMap.values()).map(toUserListEntity);
   }
 
   upsertUser(input: UpsertUserInput): Promise<UserEntity> {

@@ -10,6 +10,14 @@ export const listUsersQuerySchema = z.object({
 
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
 
+export const userOptionsQuerySchema = z.object({
+  search: z.string().trim().max(128).optional(),
+  selectedUserId: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(50).optional().default(30),
+});
+
+export type UserOptionsQuery = z.infer<typeof userOptionsQuerySchema>;
+
 export const userIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });

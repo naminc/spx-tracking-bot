@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import type { TrackingCarrier } from "../lib/types/tracking";
 import type { User } from "../lib/types/user";
 import { formatDate } from "../lib/format";
+import {
+  isValidGhnCredential,
+  isValidJntCredential,
+  shouldUseGhnCredential,
+  shouldUseJntCredential,
+} from "../lib/tracking-credential";
+import { useCreateTrackingOrder } from "../hooks/useTracking";
 import {
   useBlockUser,
   useBulkDeleteUsers,
@@ -21,6 +29,8 @@ import { PaginatedTable } from "../components/ui/PaginatedTable";
 import { ErrorState } from "../components/ui/ErrorState";
 
 type ProfileFilterValue = UserProfileFilter | "";
+type CarrierInput = TrackingCarrier | "AUTO";
+const maxOrderNoteLength = 512;
 
 function parseUserIdTokens(value: string) {
   const tokens = value
@@ -55,6 +65,11 @@ export function UsersPage() {
   const [blockTarget, setBlockTarget] = useState<User | null>(null);
   const [blockReason, setBlockReason] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [addOrderTarget, setAddOrderTarget] = useState<User | null>(null);
+  const [addOrderCarrier, setAddOrderCarrier] = useState<CarrierInput>("AUTO");
+  const [addOrderTrackingNumber, setAddOrderTrackingNumber] = useState("");
+  const [addOrderTrackingCredential, setAddOrderTrackingCredential] = useState("");
+  const [addOrderNote, setAddOrderNote] = useState("");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleteInput, setBulkDeleteInput] = useState("");
   const [clearZeroOrderOpen, setClearZeroOrderOpen] = useState(false);
@@ -73,6 +88,7 @@ export function UsersPage() {
   const blockUser = useBlockUser();
   const unblockUser = useUnblockUser();
   const deleteUser = useDeleteUser();
+  const createTrackingOrder = useCreateTrackingOrder();
   const bulkDeleteUsers = useBulkDeleteUsers();
   const clearZeroOrderUsers = useClearZeroOrderUsers();
   const zeroOrderPreview = useZeroOrderUsersPreview(clearZeroOrderOpen);
@@ -83,6 +99,20 @@ export function UsersPage() {
   const zeroOrderPreviewErrorMessage = zeroOrderPreview.error
     ? (zeroOrderPreview.error as Error).message
     : "";
+  const normalizedAddOrderTrackingNumber = addOrderTrackingNumber.trim().toUpperCase();
+  const shouldShowGhnCredential = shouldUseGhnCredential(
+    addOrderCarrier,
+    normalizedAddOrderTrackingNumber,
+  );
+  const shouldShowJntCredential = shouldUseJntCredential(
+    addOrderCarrier,
+    normalizedAddOrderTrackingNumber,
+  );
+  const shouldShowTrackingCredential = shouldShowGhnCredential || shouldShowJntCredential;
+  const trackingCredentialLabel = shouldShowGhnCredential ? "Phone / phone_verify" : "Phone last 4";
+  const trackingCredentialPlaceholder = shouldShowGhnCredential
+    ? "0987654321 or 64-hex phone_verify"
+    : "9613";
 
   useEffect(() => {
     if (errorMessage) {
@@ -149,6 +179,14 @@ export function UsersPage() {
       header: "",
       render: (user: User) => (
         <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setAddOrderTarget(user)}
+          >
+            Add Order
+          </Button>
           <Button
             type="button"
             variant="secondary"
@@ -239,6 +277,54 @@ export function UsersPage() {
 
     await deleteUser.mutateAsync(deleteTarget.id);
     setDeleteTarget(null);
+  };
+
+  const resetAddOrderForm = () => {
+    setAddOrderTarget(null);
+    setAddOrderCarrier("AUTO");
+    setAddOrderTrackingNumber("");
+    setAddOrderTrackingCredential("");
+    setAddOrderNote("");
+  };
+
+  const handleAddOrderSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!addOrderTarget) return;
+
+    const normalizedTrackingCredential = addOrderTrackingCredential.trim();
+    const normalizedNote = addOrderNote.trim();
+
+    if (shouldShowJntCredential && !isValidJntCredential(normalizedTrackingCredential)) {
+      toast.error("J&T phone last 4 must contain exactly 4 digits.");
+      return;
+    }
+
+    if (shouldShowGhnCredential && !isValidGhnCredential(normalizedTrackingCredential)) {
+      toast.error("GHN requires recipient phone or a 64-character phone_verify.");
+      return;
+    }
+
+    if (normalizedNote.length > maxOrderNoteLength) {
+      toast.error(`Note must be at most ${maxOrderNoteLength} characters.`);
+      return;
+    }
+
+    try {
+      await createTrackingOrder.mutateAsync({
+        carrier: addOrderCarrier,
+        trackingNumber: addOrderTrackingNumber,
+        telegramChatId: addOrderTarget.telegramUserId,
+        userId: addOrderTarget.id,
+        note: normalizedNote || undefined,
+        trackingCredential: shouldShowTrackingCredential
+          ? normalizedTrackingCredential
+          : undefined,
+      });
+      resetAddOrderForm();
+    } catch {
+      // Toast is handled in the mutation.
+    }
   };
 
   const handleBulkDeleteSubmit = async (event: React.FormEvent) => {
@@ -428,6 +514,87 @@ export function UsersPage() {
             </Button>
             <Button type="submit" variant="danger" loading={deleteUser.isPending}>
               Delete
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(addOrderTarget)}
+        onClose={() => {
+          if (!createTrackingOrder.isPending) {
+            resetAddOrderForm();
+          }
+        }}
+        title="Add tracking order"
+        size="md"
+      >
+        <form className="space-y-4" onSubmit={handleAddOrderSubmit}>
+          {addOrderTarget ? (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+              {formatUserSummary(addOrderTarget)}
+            </div>
+          ) : null}
+
+          <div>
+            <label htmlFor="user-add-order-carrier" className="mb-1 block text-sm font-medium text-gray-700">
+              Carrier
+            </label>
+            <select
+              id="user-add-order-carrier"
+              value={addOrderCarrier}
+              onChange={(event) => setAddOrderCarrier(event.target.value as CarrierInput)}
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="AUTO">Auto</option>
+              <option value="SPX">SPX</option>
+              <option value="GHN">GHN</option>
+              <option value="JNT">J&amp;T</option>
+            </select>
+          </div>
+
+          <Input
+            label="Tracking Number"
+            placeholder="SPXVN063015366786, VN260473135399R, VNGH80667097209, JNTXB1012408892, or 862195772225"
+            value={addOrderTrackingNumber}
+            onChange={(event) => setAddOrderTrackingNumber(event.target.value)}
+            required
+          />
+
+          <Input
+            label={trackingCredentialLabel}
+            placeholder={trackingCredentialPlaceholder}
+            value={addOrderTrackingCredential}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setAddOrderTrackingCredential(
+                shouldShowJntCredential ? nextValue.replace(/\D/g, "").slice(0, 4) : nextValue,
+              );
+            }}
+            maxLength={shouldShowGhnCredential ? 128 : 4}
+            disabled={!shouldShowTrackingCredential}
+            autoComplete="off"
+          />
+
+          <Input
+            label="Note"
+            placeholder="Customer order note"
+            value={addOrderNote}
+            onChange={(event) => setAddOrderNote(event.target.value)}
+            maxLength={maxOrderNoteLength}
+          />
+
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={resetAddOrderForm}
+              disabled={createTrackingOrder.isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={createTrackingOrder.isPending}>
+              Add Order
             </Button>
           </div>
         </form>

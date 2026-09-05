@@ -7,6 +7,7 @@ import {
   bulkDeleteUsersBodySchema,
   listUsersQuerySchema,
   userIdParamsSchema,
+  userOptionsQuerySchema,
 } from './user.schema';
 
 export const userRouter = Router();
@@ -15,6 +16,12 @@ userRouter.get(
   '/',
   validateRequest({ query: listUsersQuerySchema }),
   asyncHandler(userController.listUsers),
+);
+
+userRouter.get(
+  '/options',
+  validateRequest({ query: userOptionsQuerySchema }),
+  asyncHandler(userController.listUserOptions),
 );
 
 userRouter.get(

@@ -9,6 +9,7 @@ import type {
   BulkDeleteUsersBody,
   ListUsersQuery,
   UserIdParams,
+  UserOptionsQuery,
 } from './user.schema';
 
 export class UserController {
@@ -23,6 +24,13 @@ export class UserController {
         getPaginationMeta(result),
       ),
     );
+  };
+
+  listUserOptions = async (request: Request, response: Response): Promise<void> => {
+    const users = await this.repository.listUserOptions(
+      request.query as unknown as UserOptionsQuery,
+    );
+    response.json(successResponse('Fetched user options successfully', users));
   };
 
   previewZeroOrderUsers = async (_request: Request, response: Response): Promise<void> => {

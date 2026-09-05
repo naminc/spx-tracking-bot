@@ -22,7 +22,6 @@ import {
   useTrackingOrders,
   type OrderSort,
 } from "../hooks/useTracking";
-import { useUserOptions } from "../hooks/useUsers";
 import { UserFilterSelect } from "../components/UserFilterSelect";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -145,8 +144,6 @@ export function OrdersPage() {
   const data = ordersQuery.data?.data ?? [];
   const pagination = ordersQuery.data?.meta;
   const { isLoading, isFetching, error, refetch } = ordersQuery;
-  const usersQuery = useUserOptions();
-  const users = usersQuery.data ?? [];
   const createOrder = useCreateTrackingOrder();
   const deleteOrder = useDeleteTrackingOrder();
   const tableResetKey = `${carrierFilter}|${normalizedTrackingFilter}|${normalizedChatFilter}|${userFilter}|${statusFilter}|${sort}`;
@@ -301,6 +298,7 @@ export function OrdersPage() {
       carrier: addCarrier,
       trackingNumber,
       telegramChatId: normalizedTelegramChatId,
+      userId: selectedAddUserId ? Number(selectedAddUserId) : undefined,
       note: normalizedNote || undefined,
       trackingCredential: shouldShowTrackingCredential ? normalizedTrackingCredential : undefined,
     });
@@ -308,20 +306,6 @@ export function OrdersPage() {
     setNote("");
     setTrackingCredential("");
     setTelegramChatId(created.order.telegramChatId);
-  };
-
-  const handleAddUserChange = (userId: string) => {
-    setSelectedAddUserId(userId);
-
-    if (!userId) {
-      setTelegramChatId("");
-      return;
-    }
-
-    const selectedUser = users.find((user) => String(user.id) === userId);
-    if (selectedUser) {
-      setTelegramChatId(selectedUser.telegramUserId);
-    }
   };
 
   const handleClearFilter = () => {
@@ -401,11 +385,10 @@ export function OrdersPage() {
         />
         <UserFilterSelect
           label="User"
-          users={users}
           value={selectedAddUserId}
-          onChange={handleAddUserChange}
+          onChange={setSelectedAddUserId}
+          onUserSelect={(user) => setTelegramChatId(user?.telegramUserId ?? "")}
           placeholder="Select user"
-          disabled={usersQuery.isLoading}
         />
         <Input
           label="Telegram Chat ID"
@@ -472,10 +455,8 @@ export function OrdersPage() {
         />
         <UserFilterSelect
           label="User ID"
-          users={users}
           value={userFilter}
           onChange={setUserFilter}
-          disabled={usersQuery.isLoading}
         />
         <div>
           <label htmlFor="order-status-filter" className="mb-1 block text-sm font-medium text-gray-700">
@@ -521,7 +502,6 @@ export function OrdersPage() {
             message={(tableError as Error).message}
             onRetry={() => {
               refetch();
-              usersQuery.refetch();
             }}
           />
         ) : (

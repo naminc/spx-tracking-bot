@@ -156,9 +156,11 @@ export class TrackingService {
     note?: string | null,
     carrierHint: TrackingCarrier | 'AUTO' = 'AUTO',
     trackingCredential?: string | null,
+    userId?: number,
   ): Promise<AddTrackingResult> {
     const normalizedTrackingNumber = normalizeTrackingNumber(trackingNumber);
     const carrier = this.resolveCarrier(normalizedTrackingNumber, carrierHint);
+    const owner = await this.resolveOrderOwner(userId, telegramChatId);
     const normalizedNote = this.normalizeNote(note);
     const normalizedTrackingCredential = this.normalizeTrackingCredential(
       carrier,
@@ -168,7 +170,7 @@ export class TrackingService {
     const existingOrder = await this.repository.findByTrackingNumberAndChat(
       carrier,
       normalizedTrackingNumber,
-      telegramChatId,
+      owner.telegramChatId,
     );
 
     if (existingOrder) {
@@ -176,12 +178,15 @@ export class TrackingService {
       const shouldUpdateCredential =
         normalizedTrackingCredential !== undefined &&
         existingOrder.trackingCredential !== normalizedTrackingCredential;
-      const order = shouldUpdateNote || shouldUpdateCredential
+      const shouldUpdateUserId =
+        owner.userId !== undefined && existingOrder.userId !== owner.userId;
+      const order = shouldUpdateNote || shouldUpdateCredential || shouldUpdateUserId
         ? await this.repository.updateOrderDetails(existingOrder.id, {
             note: shouldUpdateNote ? normalizedNote : undefined,
             trackingCredential: shouldUpdateCredential
               ? normalizedTrackingCredential
               : undefined,
+            userId: shouldUpdateUserId ? owner.userId : undefined,
           })
         : existingOrder;
 
@@ -206,7 +211,8 @@ export class TrackingService {
     const order = await this.repository.createOrder({
       carrier,
       trackingNumber: normalizedTrackingNumber,
-      telegramChatId,
+      telegramChatId: owner.telegramChatId,
+      userId: owner.userId,
       note: normalizedNote ?? null,
       trackingCredential: normalizedTrackingCredential ?? null,
       latestRecord,
@@ -360,6 +366,26 @@ export class TrackingService {
     }
 
     return carrier;
+  }
+
+  private async resolveOrderOwner(
+    userId: number | undefined,
+    telegramChatId: string,
+  ): Promise<{ telegramChatId: string; userId?: number }> {
+    if (!userId) {
+      return { telegramChatId };
+    }
+
+    const user = await this.repository.findUserByIdForOrder(userId);
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    return {
+      telegramChatId: user.telegramUserId,
+      userId: user.id,
+    };
   }
 
   private detectGhnFinalStatus(status: string, trackingCode?: string): FinalStatus {

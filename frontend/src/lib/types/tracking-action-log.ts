@@ -1,8 +1,8 @@
 import type { User } from "./user";
 import type { TrackingCarrier } from "./tracking";
 
-export type TrackingOrderActionType = "ADD" | "REMOVE";
-export type TrackingOrderActionSource = "TELEGRAM" | "ADMIN";
+export type TrackingOrderActionType = "ADD" | "REMOVE" | "PUBLIC_TRACK";
+export type TrackingOrderActionSource = "TELEGRAM" | "ADMIN" | "PUBLIC_WEB";
 
 export type TrackingActionLogOrder = {
   id: number;

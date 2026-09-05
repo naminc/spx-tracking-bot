@@ -36,11 +36,13 @@ enum BroadcastRecipientStatus {
 enum TrackingOrderActionType {
   ADD
   REMOVE
+  PUBLIC_TRACK
 }
 
 enum TrackingOrderActionSource {
   TELEGRAM
   ADMIN
+  PUBLIC_WEB
 }
 
 model TrackingOrder {

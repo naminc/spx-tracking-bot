@@ -7,7 +7,6 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { Input } from "../components/ui/Input";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
 import { useTrackingActionLogs } from "../hooks/useTrackingActionLogs";
-import { useUserOptions } from "../hooks/useUsers";
 import { formatDate } from "../lib/format";
 import type {
   TrackingOrderActionLog,
@@ -15,31 +14,32 @@ import type {
   TrackingOrderActionType,
 } from "../lib/types/tracking-action-log";
 import type { TrackingCarrier } from "../lib/types/tracking";
-import type { User } from "../lib/types/user";
 
 function optionalText(value: string | null | undefined) {
   return value && value.trim() ? value : "-";
 }
 
-function formatUser(user: User | null | undefined) {
-  if (!user) return "-";
+function formatUser(log: TrackingOrderActionLog) {
+  if (log.source === "PUBLIC_WEB" && !log.user) return "Guest";
+  if (!log.user) return "-";
 
-  const prefix = `#${user.id}`;
+  const prefix = `#${log.user.id}`;
 
-  if (user.username) return `${prefix} - @${user.username}`;
+  if (log.user.username) return `${prefix} - @${log.user.username}`;
 
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
-  if (fullName) return `${prefix} - ${fullName} (${user.telegramUserId})`;
+  const fullName = [log.user.firstName, log.user.lastName].filter(Boolean).join(" ");
+  if (fullName) return `${prefix} - ${fullName} (${log.user.telegramUserId})`;
 
-  return `${prefix} - ${user.telegramUserId}`;
+  return `${prefix} - ${log.user.telegramUserId}`;
 }
 
 function formatAdmin(log: TrackingOrderActionLog) {
+  if (log.source === "PUBLIC_WEB") return "-";
   if (!log.adminTelegramId && !log.adminUsername) return "-";
 
   return [log.adminUsername ? `@${log.adminUsername}` : null, log.adminTelegramId]
     .filter(Boolean)
-    .join(" · ");
+    .join(" | ");
 }
 
 function formatMetadata(metadata: unknown) {
@@ -74,8 +74,6 @@ export function TrackingActionLogsPage() {
     limit: pageSize,
     sort,
   });
-  const usersQuery = useUserOptions();
-  const users = usersQuery.data ?? [];
   const logs = logsQuery.data?.data ?? [];
   const pagination = logsQuery.data?.meta;
   const tableResetKey = [
@@ -131,7 +129,7 @@ export function TrackingActionLogsPage() {
       key: "user",
       header: "User",
       render: (log: TrackingOrderActionLog) => (
-        <span className="text-xs">{formatUser(log.user)}</span>
+        <span className="text-xs">{formatUser(log)}</span>
       ),
       className: "whitespace-normal min-w-48",
     },
@@ -205,6 +203,7 @@ export function TrackingActionLogsPage() {
             <option value="">All</option>
             <option value="ADD">ADD</option>
             <option value="REMOVE">REMOVE</option>
+            <option value="PUBLIC_TRACK">Public Track</option>
           </select>
         </div>
         <div>
@@ -220,6 +219,7 @@ export function TrackingActionLogsPage() {
             <option value="">All</option>
             <option value="TELEGRAM">TELEGRAM</option>
             <option value="ADMIN">ADMIN</option>
+            <option value="PUBLIC_WEB">Guest / Public Web</option>
           </select>
         </div>
         <Input
@@ -236,10 +236,8 @@ export function TrackingActionLogsPage() {
         />
         <UserFilterSelect
           label="User"
-          users={users}
           value={userInput}
           onChange={setUserInput}
-          disabled={usersQuery.isLoading}
         />
         <div>
           <label htmlFor="action-log-sort" className="mb-1 block text-sm font-medium text-gray-700">
@@ -266,7 +264,6 @@ export function TrackingActionLogsPage() {
             message={(tableError as Error).message}
             onRetry={() => {
               logsQuery.refetch();
-              usersQuery.refetch();
             }}
           />
         ) : (

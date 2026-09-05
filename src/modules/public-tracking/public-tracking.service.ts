@@ -4,6 +4,12 @@ import { JntService, jntService } from '../jnt/jnt.service';
 import { SpxService, spxService } from '../spx/spx.service';
 import type { FinalStatus } from '../tracking/final-status';
 import {
+  TrackingOrderActionSource,
+  TrackingOrderActionType,
+  trackingOrderActionLogService,
+  type TrackingOrderActionLogService,
+} from '../tracking-action-log/tracking-action-log.service';
+import {
   TrackingCarrier,
   detectTrackingCarrier,
   isValidTrackingNumberForCarrier,
@@ -42,6 +48,7 @@ export class PublicTrackingService {
     private readonly ghn: GhnService = ghnService,
     private readonly jnt: JntService = jntService,
     private readonly tracking: TrackingService = trackingService,
+    private readonly actionLogs: TrackingOrderActionLogService = trackingOrderActionLogService,
   ) {}
 
   async track(input: PublicTrackInput): Promise<PublicTrackingResult> {
@@ -66,17 +73,58 @@ export class PublicTrackingService {
       throw new AppError('Không tìm thấy lịch sử tracking cho vận đơn này', 404);
     }
 
+    const finalStatus = this.tracking.detectFinalStatus(
+      latestRecord.status,
+      latestRecord.trackingCode,
+      carrier,
+    );
+
+    await this.actionLogs.safeCreateLog({
+      carrier,
+      action: TrackingOrderActionType.PUBLIC_TRACK,
+      source: TrackingOrderActionSource.PUBLIC_WEB,
+      trackingNumber: input.trackingNumber,
+      telegramChatId: null,
+      userId: null,
+      orderId: null,
+      adminTelegramId: null,
+      adminUsername: 'Guest',
+      metadata: {
+        via: 'public_track_page',
+        success: true,
+        finalStatus,
+        eventsCount: records.length,
+        hasCredential: Boolean(input.trackingCredential),
+        credentialType: this.getCredentialType(carrier, input.trackingCredential),
+      },
+    });
+
     return {
       carrier,
       trackingNumber: input.trackingNumber,
       latest: toPublicEvent(latestRecord),
-      finalStatus: this.tracking.detectFinalStatus(
-        latestRecord.status,
-        latestRecord.trackingCode,
-        carrier,
-      ),
+      finalStatus,
       events: records.map(toPublicEvent),
     };
+  }
+
+  private getCredentialType(
+    carrier: TrackingCarrier,
+    trackingCredential?: string,
+  ): 'phone_last_4' | 'phone_or_phone_verify' | null {
+    if (!trackingCredential) {
+      return null;
+    }
+
+    if (carrier === TrackingCarrier.JNT) {
+      return 'phone_last_4';
+    }
+
+    if (carrier === TrackingCarrier.GHN) {
+      return 'phone_or_phone_verify';
+    }
+
+    return null;
   }
 
   private async safeGetTrackingRecords(

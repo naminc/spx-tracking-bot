@@ -81,6 +81,7 @@ export function useCreateTrackingOrder() {
       carrier?: TrackingCarrier | "AUTO";
       trackingNumber: string;
       telegramChatId?: string;
+      userId?: number;
       note?: string;
       trackingCredential?: string;
     }) =>
@@ -89,6 +90,10 @@ export function useCreateTrackingOrder() {
       queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
       queryClient.invalidateQueries({ queryKey: ["tracking-histories"] });
       queryClient.invalidateQueries({ queryKey: ["tracking-action-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user-options"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       if (result.alreadyExists) {
         if (result.noteUpdated) {
           toast.warning("Đơn hàng đã tồn tại, đã cập nhật ghi chú");
@@ -120,6 +125,10 @@ export function useDeleteTrackingOrder() {
       queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
       queryClient.invalidateQueries({ queryKey: ["tracking-histories"] });
       queryClient.invalidateQueries({ queryKey: ["tracking-action-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user-options"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success("Tracking order deleted");
     },
     onError: (error: Error) => toast.error(error.message),

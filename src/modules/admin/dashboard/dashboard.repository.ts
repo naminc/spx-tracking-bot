@@ -1,5 +1,7 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../../shared/prisma/client';
+import { FinalStatus } from '../../tracking/final-status';
+import type { TrackingCarrier as TrackingCarrierType } from '../../tracking/tracking-carrier';
 
 const recentLimit = 8;
 
@@ -35,6 +37,26 @@ export type DashboardRecentOrderEntity = Prisma.TrackingOrderGetPayload<{
 export type DashboardRecentHistoryEntity = Prisma.TrackingHistoryGetPayload<{
   include: typeof trackingHistoryInclude;
 }>;
+
+export type DashboardAnalyticsQueryInput = {
+  fromUtc: Date;
+  toExclusiveUtc: Date;
+  carrier?: TrackingCarrierType;
+};
+
+export type DashboardActionAnalyticsRow = {
+  eventDate: string | Date;
+  carrier: TrackingCarrierType;
+  source: 'TELEGRAM' | 'ADMIN';
+  count: bigint | number;
+};
+
+export type DashboardOrderStatusAnalyticsRow = {
+  eventDate: string | Date;
+  carrier: TrackingCarrierType;
+  finalStatus: FinalStatus;
+  count: bigint | number;
+};
 
 export class DashboardRepository {
   async getOrderCounts() {
@@ -73,6 +95,73 @@ export class DashboardRepository {
       orderBy: { eventTime: 'desc' },
       take: recentLimit,
     });
+  }
+
+  async getDailyActionAdds(
+    input: DashboardAnalyticsQueryInput,
+  ): Promise<DashboardActionAnalyticsRow[]> {
+    const carrierFilter = input.carrier
+      ? Prisma.sql`AND \`carrier\` = ${input.carrier}`
+      : Prisma.empty;
+
+    return prisma.$queryRaw<DashboardActionAnalyticsRow[]>(Prisma.sql`
+      SELECT
+        DATE_FORMAT(DATE_ADD(\`createdAt\`, INTERVAL 7 HOUR), '%Y-%m-%d') AS eventDate,
+        \`carrier\` AS carrier,
+        \`source\` AS source,
+        COUNT(*) AS count
+      FROM \`TrackingOrderActionLog\`
+      WHERE
+        \`action\` = 'ADD'
+        AND \`createdAt\` >= ${input.fromUtc}
+        AND \`createdAt\` < ${input.toExclusiveUtc}
+        ${carrierFilter}
+      GROUP BY eventDate, \`carrier\`, \`source\`
+      ORDER BY eventDate ASC
+    `);
+  }
+
+  async getDailyOrderStatusCounts(
+    input: DashboardAnalyticsQueryInput,
+  ): Promise<DashboardOrderStatusAnalyticsRow[]> {
+    const carrierFilter = input.carrier
+      ? Prisma.sql`AND \`carrier\` = ${input.carrier}`
+      : Prisma.empty;
+
+    return prisma.$queryRaw<DashboardOrderStatusAnalyticsRow[]>(Prisma.sql`
+      SELECT
+        DATE_FORMAT(
+          DATE_ADD(
+            CASE
+              WHEN \`finalStatus\` = ${FinalStatus.PENDING} THEN \`createdAt\`
+              ELSE \`lastEventTime\`
+            END,
+            INTERVAL 7 HOUR
+          ),
+          '%Y-%m-%d'
+        ) AS eventDate,
+        \`carrier\` AS carrier,
+        \`finalStatus\` AS finalStatus,
+        COUNT(*) AS count
+      FROM \`TrackingOrder\`
+      WHERE
+        (
+          (
+            \`finalStatus\` = ${FinalStatus.PENDING}
+            AND \`createdAt\` >= ${input.fromUtc}
+            AND \`createdAt\` < ${input.toExclusiveUtc}
+          )
+          OR
+          (
+            \`finalStatus\` <> ${FinalStatus.PENDING}
+            AND \`lastEventTime\` >= ${input.fromUtc}
+            AND \`lastEventTime\` < ${input.toExclusiveUtc}
+          )
+        )
+        ${carrierFilter}
+      GROUP BY eventDate, \`carrier\`, \`finalStatus\`
+      ORDER BY eventDate ASC
+    `);
   }
 }
 

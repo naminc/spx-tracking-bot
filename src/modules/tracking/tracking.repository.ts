@@ -88,6 +88,7 @@ type CreateOrderInput = {
   carrier: TrackingCarrier;
   trackingNumber: string;
   telegramChatId: string;
+  userId?: number | null;
   note?: string | null;
   trackingCredential?: string | null;
   latestRecord: NormalizedTrackingRecord;
@@ -278,12 +279,19 @@ export class TrackingRepository {
     });
   }
 
+  findUserByIdForOrder(userId: number): Promise<Pick<TrackingUserEntity, 'id' | 'telegramUserId'> | null> {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, telegramUserId: true },
+    });
+  }
+
   async createOrder(input: CreateOrderInput): Promise<TrackingOrderEntity> {
     return prisma.$transaction(async (transaction) => {
       const telegramUserId = input.telegramChatId === 'api' ? undefined : input.telegramChatId;
-      let userId: number | null = null;
+      let userId: number | null = input.userId ?? null;
 
-      if (telegramUserId) {
+      if (!userId && telegramUserId) {
         const existingUser = await transaction.user.findUnique({
           where: { telegramUserId },
           select: { id: true },
@@ -338,13 +346,14 @@ export class TrackingRepository {
 
   updateOrderDetails(
     orderId: number,
-    input: { note?: string | null; trackingCredential?: string | null },
+    input: { note?: string | null; trackingCredential?: string | null; userId?: number | null },
   ): Promise<TrackingOrderEntity> {
     return prisma.trackingOrder.update({
       where: { id: orderId },
       data: {
         note: input.note,
         trackingCredential: input.trackingCredential,
+        userId: input.userId,
       },
       include: trackingOrderInclude,
     });

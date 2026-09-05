@@ -109,10 +109,11 @@ export class TrackingController {
   };
 
   createOrder = async (request: Request, response: Response): Promise<void> => {
-    const { carrier, trackingNumber, telegramChatId, note, trackingCredential } = request.body as {
+    const { carrier, trackingNumber, telegramChatId, userId, note, trackingCredential } = request.body as {
       carrier: TrackingCarrier | 'AUTO';
       trackingNumber: string;
       telegramChatId: string;
+      userId?: number;
       note?: string | null;
       trackingCredential?: string;
     };
@@ -124,6 +125,7 @@ export class TrackingController {
       note,
       carrier,
       trackingCredential,
+      userId,
     );
     await trackingOrderActionLogService.safeCreateLog({
       carrier: result.order.carrier,

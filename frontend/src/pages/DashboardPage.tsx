@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import type { TrackingHistory, TrackingOrder } from "../lib/types/tracking";
 import { formatDate } from "../lib/format";
@@ -6,6 +7,12 @@ import { Badge } from "../components/ui/Badge";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { PaginatedTable } from "../components/ui/PaginatedTable";
+
+const DashboardAnalyticsSection = lazy(() =>
+  import("../components/dashboard/DashboardAnalyticsSection").then((module) => ({
+    default: module.DashboardAnalyticsSection,
+  })),
+);
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -111,6 +118,16 @@ export function DashboardPage() {
           </div>
         ))}
       </div>
+
+      <Suspense
+        fallback={
+          <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500 shadow-sm">
+            Loading analytics...
+          </div>
+        }
+      >
+        <DashboardAnalyticsSection />
+      </Suspense>
 
       <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">

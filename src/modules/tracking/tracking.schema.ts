@@ -54,6 +54,7 @@ export const createTrackingOrderSchema = z.object({
   trackingNumber: trackingNumberSchema,
   carrier: trackingCarrierHintSchema,
   telegramChatId: z.string().trim().min(1).max(64).optional().default('api'),
+  userId: z.coerce.number().int().positive().optional(),
   note: orderNoteSchema.optional(),
   trackingCredential: trackingCredentialSchema,
 });

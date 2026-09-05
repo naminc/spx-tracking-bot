@@ -47,10 +47,12 @@ function toQueryString(params: Record<string, string | number | undefined>): str
 
 function invalidateUserRelatedQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["users"] });
+  queryClient.invalidateQueries({ queryKey: ["user-options"] });
   queryClient.invalidateQueries({ queryKey: ["tracking-orders"] });
   queryClient.invalidateQueries({ queryKey: ["tracking-histories"] });
   queryClient.invalidateQueries({ queryKey: ["tracking-action-logs"] });
   queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
 }
 
 export function useUsers(filters: UserFilters = {}) {

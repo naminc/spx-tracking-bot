@@ -11,6 +11,13 @@ export type {
 export type { PaginatedResponse } from "./common";
 export type { AppSetting } from "./setting";
 export type {
+  DashboardAnalytics,
+  DashboardAnalyticsCarrierRow,
+  DashboardAnalyticsDailyRow,
+  DashboardAnalyticsFilters,
+  DashboardAnalyticsTotals,
+} from "./dashboard-analytics";
+export type {
   TrackingActionLogOrder,
   TrackingOrderActionLog,
   TrackingOrderActionLogFilters,

@@ -188,9 +188,19 @@ model BroadcastRecipient {
 }
 
 model AppSetting {
-  id                 Int      @id
-  adminContact       String   @db.VarChar(128)
-  maintenanceEnabled Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  Int      @id
+  adminContact        String   @db.VarChar(128)
+  maintenanceEnabled  Boolean  @default(false)
+  restrictModeEnabled Boolean  @default(false)
+  restrictModeMessage String?  @db.VarChar(2048)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model BotRestrictAllowListEntry {
+  id             Int      @id @default(autoincrement())
+  telegramUserId String   @unique @db.VarChar(64)
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
 }

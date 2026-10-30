@@ -4,6 +4,10 @@ import { logger } from '../../shared/logger/logger';
 import type { PaginatedRepositoryResult, PaginationInput } from '../../shared/pagination/pagination';
 import { GhnService, ghnService } from '../ghn/ghn.service';
 import { JntService, jntService } from '../jnt/jnt.service';
+import {
+  RestrictModeService,
+  restrictModeService,
+} from '../restrict-mode/restrict-mode.service';
 import { spxService, SpxService } from '../spx/spx.service';
 import { FinalStatus } from './final-status';
 import {
@@ -35,6 +39,7 @@ export type AddTrackingResult = {
 export type TrackingNotification = {
   carrier: TrackingCarrier;
   chatId: string;
+  telegramUserId?: string;
   trackingNumber: string;
   status: string;
   trackingCode: string;
@@ -98,6 +103,7 @@ export class TrackingService {
     private readonly spx: SpxService = spxService,
     private readonly ghn: GhnService = ghnService,
     private readonly jnt: JntService = jntService,
+    private readonly restrictMode: RestrictModeService = restrictModeService,
   ) {}
 
   listOrders(
@@ -248,6 +254,19 @@ export class TrackingService {
     const notifications: TrackingNotification[] = [];
 
     for (const order of activeOrders) {
+      const telegramUserId = order.user?.telegramUserId ?? order.telegramChatId;
+
+      if (
+        order.telegramChatId !== 'api' &&
+        !(await this.restrictMode.canUseBot(telegramUserId))
+      ) {
+        logger.debug(
+          { orderId: order.id, telegramUserId },
+          'Skipped tracking refresh because Restrict Mode denied access',
+        );
+        continue;
+      }
+
       if (order.carrier === TrackingCarrier.GHN && !order.trackingCredential) {
         logger.warn(
           { carrier: order.carrier, orderId: order.id, trackingNumber: order.trackingNumber },
@@ -285,6 +304,7 @@ export class TrackingService {
           notifications.push({
             carrier: order.carrier,
             chatId: order.telegramChatId,
+            telegramUserId,
             trackingNumber: order.trackingNumber,
             status: latestRecord.status,
             trackingCode: latestRecord.trackingCode,

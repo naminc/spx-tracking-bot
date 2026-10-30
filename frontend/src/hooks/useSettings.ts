@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "../lib/api/client";
-import type { AppSetting } from "../lib/types/setting";
+import type { AppSetting, UpdateAppSettingInput } from "../lib/types/setting";
 
 export function useSettings() {
   return useQuery<AppSetting>({
@@ -16,7 +16,7 @@ export function useUpdateSettings() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { adminContact: string; maintenanceEnabled: boolean }) =>
+    mutationFn: (input: UpdateAppSettingInput) =>
       apiClient.put<AppSetting>("/admin/settings", input),
     onSuccess: (settings) => {
       queryClient.setQueryData(["settings"], settings);

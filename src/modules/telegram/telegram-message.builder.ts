@@ -226,6 +226,10 @@ Hiện tại bot đang tạm ngưng nhận đơn mới. Vui lòng thử lại sa
 Tài khoản của bạn hiện không thể sử dụng chức năng theo dõi. Vui lòng liên hệ admin nếu cần hỗ trợ.`;
   },
 
+  restriction(message: string): string {
+    return escapeHtml(message.trim());
+  },
+
   addInstruction(): string {
     return `<b>${addCommandIcon} Thêm đơn tracking</b>
 ━━━━━━━━━━━━━━━━

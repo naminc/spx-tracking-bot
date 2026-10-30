@@ -21,6 +21,10 @@ import {
 import { SettingService, settingService } from '../admin/setting/setting.service';
 import { UserRepository, userRepository, type UserEntity } from '../admin/user/user.repository';
 import {
+  RestrictModeService,
+  restrictModeService,
+} from '../restrict-mode/restrict-mode.service';
+import {
   TrackingOrderActionSource,
   TrackingOrderActionType,
   trackingOrderActionLogService,
@@ -89,6 +93,7 @@ export class TelegramService {
     private readonly service: TrackingService = trackingService,
     private readonly users: UserRepository = userRepository,
     private readonly settings: SettingService = settingService,
+    private readonly restrictMode: RestrictModeService = restrictModeService,
   ) {}
 
   async handleUpdate(update: TelegramUpdate): Promise<void> {
@@ -104,53 +109,66 @@ export class TelegramService {
     }
 
     const telegramUser = await this.recordTelegramUserFromMessage(message);
+    const chatId = String(message.chat.id);
+    const telegramUserId = String(message.from?.id ?? message.chat.id);
+    const text = message.text?.trim();
+    const command = text?.split(/\s+/)[0].split('@')[0];
 
-    if (!message.text) {
+    if (
+      await this.sendRestrictionIfNeeded(
+        telegramUserId,
+        chatId,
+        'message',
+        command,
+      )
+    ) {
       return;
     }
 
-    const chatId = String(message.chat.id);
-    const text = message.text.trim();
-    const command = text.split(/\s+/)[0].split('@')[0];
+    if (!text) {
+      return;
+    }
+
+    const resolvedCommand = command ?? '';
     const blockedTrackingCommands = ['/add', '/remove', '/list'];
 
-    if (telegramUser?.isBlocked && blockedTrackingCommands.includes(command)) {
+    if (telegramUser?.isBlocked && blockedTrackingCommands.includes(resolvedCommand)) {
       await this.sendMessage(chatId, telegramMessageBuilder.blockedUser());
       return;
     }
 
-    if (command === '/start') {
+    if (resolvedCommand === '/start') {
       await this.sendStartMessage(chatId);
       return;
     }
 
-    if (command === '/help') {
+    if (resolvedCommand === '/help') {
       await this.sendMessage(chatId, telegramMessageBuilder.help());
       return;
     }
 
-    if (command === '/carriers' || command === '/carrier') {
+    if (resolvedCommand === '/carriers' || resolvedCommand === '/carrier') {
       await this.sendMessage(chatId, telegramMessageBuilder.supportedCarriers());
       return;
     }
 
-    if (command === '/add') {
+    if (resolvedCommand === '/add') {
       await this.handleAdd(chatId, text);
       return;
     }
 
-    if (command === '/list') {
+    if (resolvedCommand === '/list') {
       await this.sendOrderList(chatId);
       return;
     }
 
-    if (command === '/contact') {
+    if (resolvedCommand === '/contact') {
       const adminContact = await this.settings.getAdminContact();
       await this.sendMessage(chatId, telegramMessageBuilder.contact(adminContact));
       return;
     }
 
-    if (command === '/remove') {
+    if (resolvedCommand === '/remove') {
       await this.handleRemove(chatId, text);
       return;
     }
@@ -165,6 +183,16 @@ export class TelegramService {
 
   async sendTrackingNotification(notification: TrackingNotification): Promise<void> {
     if (notification.chatId === 'api') {
+      return;
+    }
+
+    const telegramUserId = notification.telegramUserId ?? notification.chatId;
+
+    if (!(await this.restrictMode.canUseBot(telegramUserId))) {
+      logger.debug(
+        { telegramUserId },
+        'Skipped tracking notification because Restrict Mode denied access',
+      );
       return;
     }
 
@@ -336,7 +364,22 @@ export class TelegramService {
     const telegramUser = await this.recordTelegramUserFromCallback(callbackQuery);
     await this.answerCallbackQuery(callbackQuery.id);
 
-    if (!chatId || !callbackQuery.data) {
+    if (!chatId) {
+      return;
+    }
+
+    if (
+      await this.sendRestrictionIfNeeded(
+        String(callbackQuery.from.id),
+        chatId,
+        'callback_query',
+        callbackQuery.data,
+      )
+    ) {
+      return;
+    }
+
+    if (!callbackQuery.data) {
       return;
     }
 
@@ -420,6 +463,29 @@ export class TelegramService {
       logger.warn({ err: error, telegramId: String(user.id) }, 'Failed to record Telegram user');
       return null;
     }
+  }
+
+  private async sendRestrictionIfNeeded(
+    telegramUserId: string,
+    chatId: string,
+    updateType: 'message' | 'callback_query',
+    command?: string,
+  ): Promise<boolean> {
+    const access = await this.restrictMode.checkTelegramAccess(telegramUserId);
+
+    if (!access.restricted) {
+      return false;
+    }
+
+    logger.info(
+      { telegramUserId, updateType, command },
+      'Telegram update blocked by Restrict Mode',
+    );
+    await this.sendMessage(
+      chatId,
+      telegramMessageBuilder.restriction(access.message),
+    );
+    return true;
   }
 
   private async handleAdd(chatId: string, text: string): Promise<void> {

@@ -1,6 +1,11 @@
 import { BroadcastStatus } from '@prisma/client';
 import { AxiosError } from 'axios';
 import { AppError } from '../../../shared/errors/app-error';
+import { logger } from '../../../shared/logger/logger';
+import {
+  RestrictModeService,
+  restrictModeService,
+} from '../../restrict-mode/restrict-mode.service';
 import { telegramService } from '../../telegram/telegram.service';
 import {
   BroadcastDetailEntity,
@@ -144,7 +149,10 @@ const buildCsv = (recipients: BroadcastRecipientEntity[]): string => {
 };
 
 export class BroadcastService {
-  constructor(private readonly repository: BroadcastRepository = broadcastRepository) {}
+  constructor(
+    private readonly repository: BroadcastRepository = broadcastRepository,
+    private readonly restrictMode: RestrictModeService = restrictModeService,
+  ) {}
 
   listBroadcasts() {
     return this.repository.listBroadcasts();
@@ -163,8 +171,22 @@ export class BroadcastService {
   async createBroadcast(input: CreateBroadcastInput): Promise<BroadcastDetailEntity> {
     const uniqueUserIds = [...new Set(input.userIds)];
     const users = await this.repository.findUsersForBroadcast(input.targetType, uniqueUserIds);
+    const allowedTelegramUserIds = await this.restrictMode.filterAllowedTelegramUserIds(
+      users.map((user) => user.telegramUserId),
+    );
+    const eligibleUsers = users.filter((user) =>
+      allowedTelegramUserIds.has(user.telegramUserId),
+    );
+    const skippedByRestrictMode = users.length - eligibleUsers.length;
 
-    if (users.length === 0) {
+    if (skippedByRestrictMode > 0) {
+      logger.info(
+        { targetType: input.targetType, skippedByRestrictMode },
+        'Skipped broadcast recipients because Restrict Mode denied access',
+      );
+    }
+
+    if (eligibleUsers.length === 0) {
       throw new AppError('No eligible Telegram users found for this broadcast', 400);
     }
 
@@ -172,7 +194,7 @@ export class BroadcastService {
       title: input.title,
       message: input.message,
       targetType: input.targetType,
-      recipients: users.map((user) => ({
+      recipients: eligibleUsers.map((user) => ({
         userId: user.id,
         telegramUserId: user.telegramUserId,
       })),
@@ -195,6 +217,24 @@ export class BroadcastService {
 
     for (const recipient of recipients) {
       const attemptedAt = new Date();
+
+      if (recipient.user?.isBlocked) {
+        await this.repository.markRecipientFailed(
+          recipient.id,
+          'Skipped: User is blocked',
+          attemptedAt,
+        );
+        continue;
+      }
+
+      if (!(await this.restrictMode.canUseBot(recipient.telegramUserId))) {
+        await this.repository.markRecipientFailed(
+          recipient.id,
+          'Skipped: Telegram user is not allowed by Restrict Mode',
+          attemptedAt,
+        );
+        continue;
+      }
 
       try {
         await telegramService.sendMessageOrThrow(recipient.telegramUserId, message);

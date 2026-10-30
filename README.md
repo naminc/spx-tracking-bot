@@ -303,3 +303,5 @@ When a provider returns a new latest event, the app updates `TrackingOrder`, ins
 Created and maintained by [Ngo Dinh Nam](https://naminc.dev).
 
 If you use or build upon this project, please consider keeping the original author attribution.
+
+If you find this project useful, please consider giving it a [star on GitHub](https://github.com/naminc/spx-tracking-bot). Your support helps the project grow.

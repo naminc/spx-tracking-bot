@@ -1,8 +1,34 @@
-# SPX Tracking Bot
+# Express Track Bot
 
-Telegram bot and REST API for tracking SPX Vietnam shipments.
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)](https://expressjs.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+![Carriers](https://img.shields.io/badge/Carriers-SPX%20%7C%20GHN%20%7C%20J%26T-5B4BDB)
+[![License](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/license/isc-license-txt)
 
-Demo bot: `@spx_track_bot`
+Telegram bot, public tracking page, REST API, and admin dashboard for tracking shipments from SPX Express, Giao Hàng Nhanh (GHN), and J&T Express.
+
+**Demo bot:** `@spx_track_bot`
+
+## Supported Carriers
+
+| Carrier | Supported tracking numbers | Tracking credential |
+| --- | --- | --- |
+| SPX Express | `SPXVN...` and SPX express/international codes such as `VN260473135399R` | Not required |
+| Giao Hàng Nhanh (GHN) | Alphanumeric codes such as `GY8RA4EL` and `VNGH80667097209` | Recipient phone number or a 64-character `phone_verify` |
+| J&T Express | Numeric codes such as `862195772225` and prefixed codes such as `JNTXB1012408892` | Last 4 digits of the recipient phone number |
+
+Carrier `AUTO` detection is available in the admin API and public tracking page. Telegram commands use the explicit `ghn` or `jnt` prefix when a credential is required.
+
+## Features
+
+- Track SPX, GHN, and J&T shipments from Telegram, the public `/track` page, or the admin dashboard.
+- Automatically poll active orders and notify Telegram users when a new tracking event appears.
+- Store normalized tracking history across all supported carriers.
+- Manage users, orders, broadcasts, action logs, and analytics from the admin dashboard.
+- Record public web lookups as guest action logs without creating tracked orders or histories.
 
 ## Stack
 
@@ -91,7 +117,32 @@ GET  /track
 POST /api/public/track
 ```
 
-The public tracking API is read-only. It checks SPX, GHN, or J&T directly through the configured providers and does not create tracking orders, histories, users, or action logs.
+The public tracking API is read-only. It checks SPX, GHN, or J&T directly through the configured providers and does not create tracking orders, histories, or users. Successful lookups create a `PUBLIC_TRACK` action log with source `PUBLIC_WEB` and user `Guest`; credentials are never stored in the log.
+
+Example requests:
+
+```json
+{
+  "carrier": "AUTO",
+  "trackingNumber": "SPXVN063015366786"
+}
+```
+
+```json
+{
+  "carrier": "GHN",
+  "trackingNumber": "GY8RA4EL",
+  "trackingCredential": "0987654321"
+}
+```
+
+```json
+{
+  "carrier": "JNT",
+  "trackingNumber": "862195772225",
+  "trackingCredential": "9613"
+}
+```
 
 ## Response Format
 
@@ -135,19 +186,42 @@ DELETE /api/orders/:trackingNumber
 GET    /api/orders/:trackingNumber/histories
 ```
 
-Create request:
+Create an SPX order:
 
 ```json
 {
   "carrier": "AUTO",
   "trackingNumber": "SPXVN063015366786",
   "telegramChatId": "api",
-  "note": "Optional note",
-  "trackingCredential": "0987654321"
+  "note": "Optional note"
 }
 ```
 
-Send `trackingCredential` for GHN and J&T orders. For GHN this can be the recipient phone number or an existing `phone_verify`; for J&T it must be the phone last 4 digits.
+Create a GHN order:
+
+```json
+{
+  "carrier": "GHN",
+  "trackingNumber": "GY8RA4EL",
+  "telegramChatId": "api",
+  "trackingCredential": "0987654321",
+  "note": "Optional note"
+}
+```
+
+Create a J&T order:
+
+```json
+{
+  "carrier": "JNT",
+  "trackingNumber": "862195772225",
+  "telegramChatId": "api",
+  "trackingCredential": "9613",
+  "note": "Optional note"
+}
+```
+
+For GHN, `trackingCredential` can be the recipient phone number or an existing 64-character `phone_verify`. For J&T, it must contain exactly the last 4 phone digits. SPX does not require a credential.
 
 Delete request can include the chat id as query string:
 
@@ -195,15 +269,26 @@ Commands:
 
 - `/start`
 - `/help`
-- `/add SPXVNxxxx`
-- `/add ghn GYH9PRA6 0987654321 optional note`
+- `/add SPXVN063015366786 optional note`
+- `/add VN260473135399R optional note`
+- `/add ghn GY8RA4EL 0987654321 optional note`
 - `/add jnt 862195772225 9613 optional note`
+- `/add JNTXB1012408892 9613 optional note`
 - `/list`
-- `/remove SPXVNxxxx`
-- `/remove GYH9PRA6`
+- `/remove SPXVN063015366786`
+- `/remove VN260473135399R`
+- `/remove GY8RA4EL`
 - `/remove jnt 862195772225`
+- `/remove JNTXB1012408892`
 - `/carriers`
 - `/contact`
+
+Notes:
+
+- The note argument is optional for every carrier.
+- GHN requires the recipient phone or `phone_verify` when adding an order.
+- J&T requires the last 4 phone digits when adding an order.
+- `/list` displays the carrier, latest status, locations, note, and event time for each tracked order.
 
 The bot uses Telegram long polling by default, so local development does not need a public webhook URL.
 
@@ -211,4 +296,10 @@ The bot uses Telegram long polling by default, so local development does not nee
 
 The scheduler runs every `TRACKING_CHECK_INTERVAL_MINUTES` minutes, defaults to `5`, and checks all orders with `isCompleted = false`. `SPX_CHECK_INTERVAL_MINUTES` is still accepted only as a legacy fallback for old deployments.
 
-When the latest `tracking_code + actual_time` changes, the app updates `TrackingOrder`, inserts `TrackingHistory`, and sends a Telegram notification. Delivered, failed, and cancelled orders are marked completed and no longer tracked.
+When a provider returns a new latest event, the app updates `TrackingOrder`, inserts `TrackingHistory`, and sends a Telegram notification. Delivered, failed, and cancelled orders are marked completed and no longer tracked. Provider failures are isolated per order so a GHN or J&T error does not stop SPX checks, and vice versa.
+
+## Author
+
+Created and maintained by [Ngo Dinh Nam](https://naminc.dev).
+
+If you use or build upon this project, please consider keeping the original author attribution.

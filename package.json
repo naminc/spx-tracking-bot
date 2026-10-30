@@ -1,7 +1,7 @@
 {
   "name": "spx-tracking-bot",
   "version": "1.0.0",
-  "description": "Telegram bot and REST API for tracking SPX Vietnam shipments.",
+  "description": "Telegram bot, public tracker, REST API, and admin dashboard for SPX, GHN, and J&T shipments.",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -14,12 +14,18 @@
   },
   "keywords": [
     "spx",
+    "ghn",
+    "jnt",
     "telegram",
     "tracking",
     "express",
     "prisma"
   ],
-  "author": "",
+  "author": {
+    "name": "naminc",
+    "url": "https://naminc.dev"
+  },
+  "homepage": "https://naminc.dev",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
